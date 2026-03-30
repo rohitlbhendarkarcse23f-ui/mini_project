@@ -1,0 +1,361 @@
+:root[data-theme="light"] {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --bg-hover: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
+  --border-color: #cbd5e1;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+[data-theme="light"] .dashboard-layout,
+[data-theme="light"] .student-dashboard-layout,
+[data-theme="light"] .teacher-dashboard-layout,
+[data-theme="light"] .recruiter-dashboard-layout {
+  background: var(--bg-primary);
+}
+
+[data-theme="light"] .sidebar,
+[data-theme="light"] .teacher-sidebar,
+[data-theme="light"] .recruiter-sidebar {
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  box-shadow: var(--shadow);
+}
+
+[data-theme="light"] .main-content {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .sidebar-header h3,
+[data-theme="light"] .sidebar-header p,
+[data-theme="light"] .sidebar-nav button,
+[data-theme="light"] .recruiter-sidebar-header h3,
+[data-theme="light"] .recruiter-sidebar-header p,
+[data-theme="light"] .recruiter-sidebar-nav button,
+[data-theme="light"] .user-name,
+[data-theme="light"] .user-id {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .sidebar-nav button:hover,
+[data-theme="light"] .recruiter-sidebar-nav button:hover {
+  background: var(--bg-hover);
+}
+
+[data-theme="light"] .sidebar-nav button.active,
+[data-theme="light"] .recruiter-sidebar-nav button.active {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white !important;
+}
+
+[data-theme="light"] .teacher-sidebar .sidebar-nav button.active {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  color: white !important;
+}
+
+[data-theme="light"] .greeting-card,
+[data-theme="light"] .stat-card,
+[data-theme="light"] .activity-card,
+[data-theme="light"] .quick-access,
+[data-theme="light"] .profile-header-card,
+[data-theme="light"] .profile-section,
+[data-theme="light"] .event-card,
+[data-theme="light"] .club-card,
+[data-theme="light"] .opportunity-card,
+[data-theme="light"] .payment-item,
+[data-theme="light"] .modal-content {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow);
+}
+
+[data-theme="light"] .greeting-card:hover,
+[data-theme="light"] .stat-card:hover,
+[data-theme="light"] .event-card:hover,
+[data-theme="light"] .club-card:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+[data-theme="light"] h1, [data-theme="light"] h2, [data-theme="light"] h3, [data-theme="light"] h4 {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .stat-card h2 {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] p, [data-theme="light"] span, [data-theme="light"] label {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="light"] input,
+[data-theme="light"] textarea,
+[data-theme="light"] select {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] input:focus,
+[data-theme="light"] textarea:focus,
+[data-theme="light"] select:focus {
+  background: var(--bg-secondary);
+  border-color: #3b82f6;
+  outline: none;
+}
+
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="light"] .merit-table {
+  background: var(--bg-secondary);
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color);
+}
+
+[data-theme="light"] .merit-table thead {
+  background: var(--bg-tertiary);
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .merit-table tbody tr {
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .merit-table tbody tr:hover {
+  background: var(--bg-tertiary);
+}
+
+[data-theme="light"] .merit-table td,
+[data-theme="light"] .merit-table th {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .student-cell strong,
+[data-theme="light"] .student-cell span {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .performer-score,
+[data-theme="light"] .performer-grade {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .performer-card h3 {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .top-header {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: var(--shadow);
+}
+
+[data-theme="light"] .header-profile-chip {
+  background: rgba(0,0,0,0.04);
+  border-color: var(--border-color);
+}
+
+[data-theme="light"] .header-profile-chip:hover {
+  background: var(--bg-hover);
+}
+
+[data-theme="light"] .header-profile-name {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .header-profile-id {
+  color: var(--text-tertiary) !important;
+}
+
+[data-theme="light"] .signout-btn,
+[data-theme="light"] .teacher-sidebar .signout-btn,
+[data-theme="light"] .recruiter-sidebar .signout-btn {
+  background: #ef4444 !important;
+  color: white !important;
+  border: 1px solid #ef4444 !important;
+}
+
+[data-theme="light"] .signout-btn:hover,
+[data-theme="light"] .teacher-sidebar .signout-btn:hover,
+[data-theme="light"] .recruiter-sidebar .signout-btn:hover {
+  background: #dc2626 !important;
+  border: 1px solid #dc2626 !important;
+}
+
+[data-theme="light"] .greeting,
+[data-theme="light"] .student-info,
+[data-theme="light"] .stat-change,
+[data-theme="light"] .activity-item p,
+[data-theme="light"] .event-desc,
+[data-theme="light"] .club-desc,
+[data-theme="light"] .opp-company {
+  color: var(--text-tertiary) !important;
+}
+
+[data-theme="light"] .greeting-card h1,
+[data-theme="light"] .greeting-card .greeting,
+[data-theme="light"] .greeting-card .student-info,
+[data-theme="light"] .profile-header-card h2,
+[data-theme="light"] .profile-header-card p,
+[data-theme="light"] .student-id-badge {
+  color: white !important;
+}
+
+[data-theme="light"] .teacher-greeting-card h1,
+[data-theme="light"] .teacher-greeting-card .greeting,
+[data-theme="light"] .teacher-greeting-card .student-info {
+  color: white !important;
+}
+
+[data-theme="light"] .recruiter-greeting-card,
+[data-theme="light"] .greeting-card {
+  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+}
+
+[data-theme="light"] .recruiter-greeting-card h1,
+[data-theme="light"] .recruiter-greeting-card .greeting,
+[data-theme="light"] .recruiter-greeting-card .student-info {
+  color: white !important;
+}
+
+[data-theme="light"] .event-details,
+[data-theme="light"] .opp-details,
+[data-theme="light"] .club-members {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="light"] .event-details div,
+[data-theme="light"] .opp-details div {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="light"] .event-details svg,
+[data-theme="light"] .opp-details svg,
+[data-theme="light"] .club-members svg {
+  stroke: var(--text-secondary) !important;
+}
+
+[data-theme="light"] .clubs-stats {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+[data-theme="light"] .club-stat {
+  background: white !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: var(--shadow) !important;
+}
+
+[data-theme="light"] .club-stat h3,
+[data-theme="light"] .club-stat p {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] button {
+  color: var(--text-primary);
+}
+
+[data-theme="light"] svg {
+  stroke: var(--text-primary);
+}
+
+[data-theme="light"] .register-btn,
+[data-theme="light"] .join-btn,
+[data-theme="light"] .view-details-btn,
+[data-theme="light"] .edit-profile-btn,
+[data-theme="light"] .doc-btn,
+[data-theme="light"] .quick-buttons button,
+[data-theme="light"] .event-filters button,
+[data-theme="light"] .club-filters button,
+[data-theme="light"] .filter-buttons button,
+[data-theme="light"] .payment-filters button,
+[data-theme="light"] .notif-filters button,
+[data-theme="light"] .merit-filters button,
+[data-theme="light"] .sort-btn {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .register-btn:hover,
+[data-theme="light"] .join-btn:hover,
+[data-theme="light"] .view-details-btn:hover,
+[data-theme="light"] .edit-profile-btn:hover,
+[data-theme="light"] .doc-btn:hover,
+[data-theme="light"] .quick-buttons button:hover,
+[data-theme="light"] .event-filters button:hover,
+[data-theme="light"] .club-filters button:hover,
+[data-theme="light"] .filter-buttons button:hover,
+[data-theme="light"] .payment-filters button:hover,
+[data-theme="light"] .notif-filters button:hover,
+[data-theme="light"] .merit-filters button:hover,
+[data-theme="light"] .sort-btn:hover {
+  background: var(--bg-hover) !important;
+  border-color: #3b82f6 !important;
+}
+
+[data-theme="light"] .event-filters button.active,
+[data-theme="light"] .club-filters button.active,
+[data-theme="light"] .filter-buttons button.active,
+[data-theme="light"] .payment-filters button.active,
+[data-theme="light"] .notif-filters button.active {
+  background: #3b82f6 !important;
+  color: white !important;
+  border-color: #3b82f6 !important;
+}
+
+[data-theme="light"] .profile-btn,
+[data-theme="light"] .avatar {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white !important;
+}
+
+[data-theme="light"] .recruiter-logo-icon {
+  background: linear-gradient(135deg, #f97316, #ea580c) !important;
+}
+
+[data-theme="light"] .teacher-sidebar .logo-icon {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed) !important;
+}
+
+[data-theme="light"] .teacher-sidebar .avatar {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed) !important;
+}
+
+[data-theme="light"] .teacher-sidebar .profile-btn {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed) !important;
+}
+
+[data-theme="light"] .recruiter-sidebar .avatar {
+  background: linear-gradient(135deg, #f97316, #ea580c) !important;
+}
+
+[data-theme="light"] .recruiter-sidebar .profile-btn {
+  background: linear-gradient(135deg, #f97316, #ea580c) !important;
+}
+
+[data-theme="light"] .modal-overlay {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="light"] .export-btn,
+[data-theme="light"] .save-changes-btn {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white !important;
+}
+
+[data-theme="light"] .export-btn:hover,
+[data-theme="light"] .save-changes-btn:hover {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+}

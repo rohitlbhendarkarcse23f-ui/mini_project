@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Merit-Based Student Rankings - Demo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a, #020617);
+            color: white;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .merit-list-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .merit-header { text-align: center; margin-bottom: 32px; }
+        .merit-header h2 {
+            font-size: 32px;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .merit-subtitle { font-size: 14px; color: rgba(255, 255, 255, 0.6); }
+        .merit-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-box {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 16px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .stat-label {
+            display: block;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 8px;
+        }
+        .stat-value {
+            display: block;
+            font-size: 24px;
+            font-weight: 700;
+            color: #3b82f6;
+        }
+        .merit-table-wrapper { overflow-x: auto; margin-bottom: 24px; }
+        .merit-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .merit-table thead { background: rgba(59, 130, 246, 0.1); }
+        .merit-table th {
+            padding: 16px;
+            text-align: left;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 14px;
+            border-bottom: 2px solid rgba(59, 130, 246, 0.3);
+        }
+        .merit-table tbody tr {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s;
+        }
+        .merit-table tbody tr:hover { background: rgba(59, 130, 246, 0.05); }
+        .merit-table td {
+            padding: 16px;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        .rank-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 14px;
+        }
+        .rank-gold { background: linear-gradient(135deg, #ffd700, #ffed4e); color: #000; }
+        .rank-silver { background: linear-gradient(135deg, #c0c0c0, #e8e8e8); color: #000; }
+        .rank-bronze { background: linear-gradient(135deg, #cd7f32, #e8a87c); color: #000; }
+        .rank-default { background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.9); }
+        .student-id { font-family: 'Courier New', monospace; color: #3b82f6; font-weight: 600; }
+        .student-name { font-weight: 600; color: rgba(255, 255, 255, 0.9); }
+        .cgpa-value { color: #22c55e; font-size: 16px; font-weight: 700; }
+        .sgpa-cell { color: #14b8a6; font-weight: 600; }
+        .trend { font-weight: 600; }
+        .trend.positive { color: #22c55e; }
+        .trend.negative { color: #ef4444; }
+        .dept-cell { color: rgba(255, 255, 255, 0.7); font-size: 13px; }
+        .merit-footer {
+            margin-top: 24px;
+            padding: 20px;
+            background: rgba(59, 130, 246, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+        .algorithm-info h4 { font-size: 16px; margin-bottom: 12px; color: #3b82f6; }
+        .algorithm-info ol { margin-left: 20px; color: rgba(255, 255, 255, 0.8); }
+        .algorithm-info li { margin-bottom: 8px; font-size: 14px; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <div class="merit-list-container">
+        <div class="merit-header">
+            <h2>🏆 Merit-Based Student Rankings</h2>
+            <p class="merit-subtitle">Ranked by: CGPA → Current SGPA → Academic Trend → SHA256 Tie-Breaker</p>
+        </div>
+
+        <div class="merit-stats">
+            <div class="stat-box">
+                <span class="stat-label">Total Students</span>
+                <span class="stat-value" id="totalStudents">15</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">Top CGPA</span>
+                <span class="stat-value" id="topCGPA">-</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">Average CGPA</span>
+                <span class="stat-value" id="avgCGPA">-</span>
+            </div>
+        </div>
+
+        <div class="merit-table-wrapper">
+            <table class="merit-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Student ID</th>
+                        <th>Name</th>
+                        <th>CGPA</th>
+                        <th>Current SGPA</th>
+                        <th>Trend</th>
+                        <th>Department</th>
+                    </tr>
+                </thead>
+                <tbody id="studentTableBody">
+                    <tr><td colspan="7" style="text-align: center; padding: 40px;">Loading rankings...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="merit-footer">
+            <div class="algorithm-info">
+                <h4>📊 Ranking Algorithm</h4>
+                <ol>
+                    <li><strong>Step 1:</strong> CGPA (Overall Academic Strength) - Measures long-term consistency</li>
+                    <li><strong>Step 2:</strong> Current Semester SGPA (Recent Performance) - Rewards current form</li>
+                    <li><strong>Step 3:</strong> Academic Trend (Improvement Score) - Rewards growth trajectory</li>
+                    <li><strong>Step 4:</strong> SHA256-based Tie-Breaker (Deterministic) - Eliminates ties fairly</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const students = [
+            { id: 'kf23cs101', name: 'Ananya Sharma', dept: 'Computer Science', sgpaList: [9.2, 9.4, 9.6] },
+            { id: 'kf23cs102', name: 'Rahul Verma', dept: 'Computer Science', sgpaList: [8.8, 9.0, 9.6] },
+            { id: 'kf23cs103', name: 'Priya Patel', dept: 'Information Technology', sgpaList: [9.0, 9.2, 9.4] },
+            { id: 'kf23cs104', name: 'Arjun Kumar', dept: 'Computer Science', sgpaList: [9.5, 9.3, 9.4] },
+            { id: 'kf23cs105', name: 'Sneha Reddy', dept: 'Electronics', sgpaList: [8.5, 8.8, 9.2] },
+            { id: 'kf23it101', name: 'Vikram Singh', dept: 'Information Technology', sgpaList: [9.0, 9.0, 9.0] },
+            { id: 'kf23cs106', name: 'Kavya Nair', dept: 'Computer Science', sgpaList: [8.7, 8.9, 9.1] },
+            { id: 'kf23ec101', name: 'Aditya Mehta', dept: 'Electronics', sgpaList: [9.1, 9.2, 9.3] },
+            { id: 'kf23cs107', name: 'Divya Shah', dept: 'Computer Science', sgpaList: [8.9, 9.1, 9.3] },
+            { id: 'kf23it102', name: 'Rohan Gupta', dept: 'Information Technology', sgpaList: [8.6, 8.7, 8.9] },
+            { id: 'kf23cs108', name: 'Ishita Joshi', dept: 'Computer Science', sgpaList: [9.3, 9.2, 9.4] },
+            { id: 'kf23ec102', name: 'Karthik Rao', dept: 'Electronics', sgpaList: [8.4, 8.6, 8.8] },
+            { id: 'kf23cs109', name: 'Meera Iyer', dept: 'Computer Science', sgpaList: [9.0, 9.1, 9.2] },
+            { id: 'kf23it103', name: 'Siddharth Desai', dept: 'Information Technology', sgpaList: [8.8, 8.9, 9.0] },
+            { id: 'kf23cs110', name: 'Tanvi Kapoor', dept: 'Computer Science', sgpaList: [9.4, 9.5, 9.6] }
+        ];
+
+        function calculateCGPA(sgpaList) {
+            return sgpaList.reduce((a, b) => a + b, 0) / sgpaList.length;
+        }
+
+        function getCurrentSGPA(sgpaList) {
+            return sgpaList[sgpaList.length - 1];
+        }
+
+        function calculateTrend(sgpaList) {
+            if (sgpaList.length <= 1) return 0;
+            const current = sgpaList[sgpaList.length - 1];
+            const previous = sgpaList.slice(0, -1);
+            const prevAvg = previous.reduce((a, b) => a + b, 0) / previous.length;
+            return current - prevAvg;
+        }
+
+        async function calculateMicroPrecision(id, sgpaList) {
+            const input = `${id}|${sgpaList.map(s => s.toFixed(2)).join('|')}`;
+            const encoder = new TextEncoder();
+            const data = encoder.encode(input);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            let sum = 0;
+            for (let i = 0; i < hashArray.length; i++) {
+                sum += hashArray[i] / Math.pow(256, i + 1);
+            }
+            return sum;
+        }
+
+        async function sortStudents() {
+            const studentsWithMetrics = await Promise.all(students.map(async (s) => ({
+                ...s,
+                cgpa: calculateCGPA(s.sgpaList),
+                currentSGPA: getCurrentSGPA(s.sgpaList),
+                trend: calculateTrend(s.sgpaList),
+                microPrecision: await calculateMicroPrecision(s.id, s.sgpaList)
+            })));
+
+            studentsWithMetrics.sort((a, b) => {
+                if (a.cgpa !== b.cgpa) return b.cgpa - a.cgpa;
+                if (a.currentSGPA !== b.currentSGPA) return b.currentSGPA - a.currentSGPA;
+                if (a.trend !== b.trend) return b.trend - a.trend;
+                return b.microPrecision - a.microPrecision;
+            });
+
+            return studentsWithMetrics.map((s, i) => ({ ...s, rank: i + 1 }));
+        }
+
+        function getRankBadge(rank) {
+            const classes = rank === 1 ? 'rank-gold' : rank === 2 ? 'rank-silver' : rank === 3 ? 'rank-bronze' : 'rank-default';
+            const medal = rank === 1 ? '🥇 ' : rank === 2 ? '🥈 ' : rank === 3 ? '🥉 ' : '';
+            return `<span class="rank-badge ${classes}">${medal}#${rank}</span>`;
+        }
+
+        function getTrendIcon(trend) {
+            return trend > 0 ? '📈' : trend < 0 ? '📉' : '➡️';
+        }
+
+        async function displayRankings() {
+            const ranked = await sortStudents();
+            const tbody = document.getElementById('studentTableBody');
+            
+            tbody.innerHTML = ranked.map(s => `
+                <tr>
+                    <td>${getRankBadge(s.rank)}</td>
+                    <td class="student-id">${s.id}</td>
+                    <td class="student-name">${s.name}</td>
+                    <td class="cgpa-cell"><span class="cgpa-value">${s.cgpa.toFixed(2)}</span></td>
+                    <td class="sgpa-cell">${s.currentSGPA.toFixed(2)}</td>
+                    <td class="trend-cell">
+                        <span class="trend ${s.trend >= 0 ? 'positive' : 'negative'}">
+                            ${getTrendIcon(s.trend)} ${s.trend >= 0 ? '+' : ''}${s.trend.toFixed(2)}
+                        </span>
+                    </td>
+                    <td class="dept-cell">${s.dept}</td>
+                </tr>
+            `).join('');
+
+            document.getElementById('topCGPA').textContent = ranked[0].cgpa.toFixed(2);
+            document.getElementById('avgCGPA').textContent = 
+                (ranked.reduce((sum, s) => sum + s.cgpa, 0) / ranked.length).toFixed(2);
+        }
+
+        displayRankings();
+    </script>
+</body>
+</html>

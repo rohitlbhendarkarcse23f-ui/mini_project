@@ -1,0 +1,316 @@
+/* ── Header profile chip ─────────────────────────────────────── */
+.header-profile-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 6px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 40px;
+  cursor: default;
+  transition: background 0.2s;
+}
+
+.header-profile-chip:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.header-avatar {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.header-profile-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.header-profile-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+}
+
+.header-profile-id {
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+}
+
+/* ── Sidebar refinements ─────────────────────────────────────── */
+.sidebar {
+  border-right: 1px solid rgba(255,255,255,0.06);
+}
+
+.sidebar-nav button {
+  letter-spacing: 0.01em;
+}
+
+.sidebar-nav button.active {
+  letter-spacing: 0.01em;
+}
+
+/* ── Greeting card refinements ───────────────────────────────── */
+.greeting-card {
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 60%, #2563eb 100%) !important;
+  box-shadow: 0 8px 32px rgba(37,99,235,0.25);
+}
+
+.greeting-card::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 200px;
+  height: 200px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.greeting-card::after {
+  content: '';
+  position: absolute;
+  bottom: -60px;
+  right: 80px;
+  width: 160px;
+  height: 160px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.greeting {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.75);
+  letter-spacing: 0.02em;
+  margin-bottom: 6px;
+}
+
+.greeting-card h1 {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin-bottom: 6px;
+}
+
+/* ── Stat cards ──────────────────────────────────────────────── */
+.stat-card {
+  border-radius: 16px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.25);
+}
+
+.stat-card h2 {
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -1px;
+}
+
+/* ── SGPA card ───────────────────────────────────────────────── */
+.cgpa-card {
+  border-radius: 14px;
+}
+
+.cgpa-card h2 {
+  font-size: 42px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  color: #60a5fa;
+}
+
+.cgpa-card h2 span {
+  font-size: 20px;
+  color: rgba(255,255,255,0.4);
+}
+
+.progress-bar {
+  height: 6px;
+  border-radius: 3px;
+}
+
+.progress {
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+/* ── Section cards ───────────────────────────────────────────── */
+.activity-card,
+.quick-access {
+  border-radius: 16px;
+}
+
+.activity-card h3,
+.quick-access h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  margin-bottom: 16px;
+}
+
+.activity-item p {
+  font-size: 13px;
+  color: rgba(255,255,255,0.8);
+}
+
+.quick-buttons button {
+  border-radius: 10px;
+  font-size: 13px;
+  padding: 12px 14px;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.quick-buttons button:hover {
+  transform: translateX(3px);
+}
+
+/* ── Profile section ─────────────────────────────────────────── */
+.profile-section {
+  border-radius: 14px;
+}
+
+.profile-section h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  margin-bottom: 16px;
+}
+
+/* ── Top header ──────────────────────────────────────────────── */
+.top-header {
+  padding: 16px 32px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+/* ── Content wrapper ─────────────────────────────────────────── */
+.content-wrapper {
+  padding: 28px 32px;
+}
+
+/* ── Light theme overrides for new elements ──────────────────── */
+[data-theme="light"] .header-profile-chip {
+  background: rgba(0,0,0,0.04);
+  border-color: rgba(0,0,0,0.1);
+}
+
+[data-theme="light"] .header-profile-chip:hover {
+  background: rgba(0,0,0,0.08);
+}
+
+[data-theme="light"] .header-profile-name {
+  color: #0f172a;
+}
+
+[data-theme="light"] .header-profile-id {
+  color: #64748b;
+}
+
+.student-dashboard-layout .sidebar-nav button.active {
+  background: linear-gradient(90deg, #3b82f6, #2563eb) !important;
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
+}
+
+.student-dashboard-layout .logo-icon {
+  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+}
+
+.student-dashboard-layout .avatar {
+  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+}
+
+.student-dashboard-layout .profile-btn {
+  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+}
+
+.student-dashboard-layout .greeting-card {
+  background: linear-gradient(135deg, #1e3a8a, #1e40af) !important;
+}
+
+.student-dashboard-layout .filter-buttons button.active {
+  background: #3b82f6 !important;
+}
+
+.student-dashboard-layout .profile-header-card {
+  background: linear-gradient(135deg, #1e3a8a, #1e40af) !important;
+}
+
+.student-dashboard-layout .profile-avatar-large {
+  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+}
+
+.student-dashboard-layout .message-avatar {
+  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+}
+
+.student-dashboard-layout .chat-avatar {
+  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+}
+
+.student-dashboard-layout .chat-message.mine .message-bubble {
+  background: #3b82f6 !important;
+}
+
+.student-dashboard-layout .chat-input button {
+  background: #3b82f6 !important;
+}
+
+.student-dashboard-layout .chat-input button:hover {
+  background: #2563eb !important;
+}
+
+.student-dashboard-layout .progress {
+  background: linear-gradient(90deg, #3b82f6, #2563eb) !important;
+}
+
+.student-dashboard-layout .cgpa-fill {
+  background: linear-gradient(90deg, #3b82f6, #2563eb) !important;
+}
+
+.student-dashboard-layout .payment-filters button.active {
+  background: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+}
+
+.student-dashboard-layout .pay-now-btn {
+  background: #3b82f6 !important;
+}
+
+.student-dashboard-layout .pay-now-btn:hover {
+  background: #2563eb !important;
+}
+
+.student-dashboard-layout .save-changes-btn {
+  background: #3b82f6 !important;
+}
+
+.student-dashboard-layout .save-changes-btn:hover {
+  background: #2563eb !important;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
+}
+
+.student-dashboard-layout .club-filters button.active {
+  background: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+}
+
+.student-dashboard-layout .event-filters button.active {
+  background: #3b82f6 !important;
+}
