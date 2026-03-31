@@ -1,80 +1,49 @@
-const express = require('express');
-const multer  = require('multer');
-const fs      = require('fs');
+const express  = require('express');
+const multer   = require('multer');
+const FormData = require('form-data');
+const http     = require('http');
+const https    = require('https');
+const axios    = require('axios');
 
-const router  = express.Router();
-const upload  = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const httpAgent  = new http.Agent({ keepAlive: false });
+const httpsAgent = new https.Agent({ keepAlive: false });
 
-const OLLAMA_URL   = process.env.OLLAMA_URL || 'http://localhost:11434';
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llava';
+const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
-const PROMPT = `You are an expert at reading Indian university marksheets.
-Extract all data from this marksheet image and return ONLY a JSON object with this structure:
-{
-  "studentId": "enrollment/roll number",
-  "studentName": "full name",
-  "semester": 3,
-  "branch": "branch name",
-  "examYear": "2024",
-  "university": "university name",
-  "subjects": [
-    {
-      "code": "CS301",
-      "name": "subject name",
-      "credits": 4,
-      "internalMarks": 25,
-      "externalMarks": 70,
-      "totalMarks": 95,
-      "grade": "O",
-      "gradePoints": 10,
-      "result": "PASS"
-    }
-  ],
-  "totalCredits": 24,
-  "sgpa": 8.75,
-  "cgpa": 8.50,
-  "result": "PASS"
+const DOCLING_URL = process.env.DOCLING_URL || 'http://localhost:5001';
+
+async function parseWithDocling(buffer, mimetype, originalname) {
+  const form = new FormData();
+  form.append('file', buffer, { filename: originalname, contentType: mimetype });
+
+  const res = await axios.post(`${DOCLING_URL}/parse`, form, {
+    headers: form.getHeaders(),
+    timeout: 300_000,
+    maxContentLength: Infinity,
+    maxBodyLength: Infinity,
+    httpAgent,
+    httpsAgent,
+    decompress: true,
+  });
+
+  return res.data;
 }
-Rules:
-- Extract EVERY subject row
-- Grade must be one of: O, A+, A, B+, B, C, D, E, F, P, AB
-- credits must be an integer
-- semester must be a number 1-8
-- Use null for missing fields
-- Return ONLY the JSON, no markdown, no explanation`;
 
 router.post('/', upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
   try {
-    const base64 = req.file.buffer.toString('base64');
-
-    const response = await fetch(`${OLLAMA_URL}/api/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model:  OLLAMA_MODEL,
-        prompt: PROMPT,
-        images: [base64],
-        stream: false,
-        options: { temperature: 0.1 },
-      }),
-    });
-
-    if (!response.ok) {
-      const err = await response.text();
-      return res.status(502).json({ error: `Ollama error: ${err.slice(0, 200)}` });
-    }
-
-    const json = await response.json();
-    const raw  = json.response || '';
-
-    const match = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim().match(/\{[\s\S]*\}/);
-    if (!match) return res.status(422).json({ error: 'No JSON in model response', raw });
-
-    res.json(JSON.parse(match[0]));
+    const { buffer, mimetype, originalname } = req.file;
+    const result = await parseWithDocling(buffer, mimetype, originalname);
+    console.log('Docling result:', JSON.stringify(result).slice(0, 300));
+    return res.json(result);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    const msg = err.response?.data?.detail || err.response?.data?.error || err.message || err.code || String(err);
+    console.error('Marksheet route error:', msg);
+    console.error('Error code:', err.code);
+    console.error('Error stack:', err.stack?.split('\n')[0]);
+    return res.status(502).json({ success: false, data: null, confidence: 0, method: 'none', errors: [msg] });
   }
 });
 

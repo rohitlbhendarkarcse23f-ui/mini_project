@@ -1086,7 +1086,7 @@ function ProfileContent() {
               <div style={{display:'flex',gap:'8px',marginBottom:'20px'}}>
                 {['manual','ai'].map(t => (
                   <button key={t} onClick={() => setMarksheetTab(t)} style={{padding:'9px 20px',border:'none',borderRadius:'8px',cursor:'pointer',fontWeight:'600',fontSize:'13px',background:marksheetTab===t?'linear-gradient(135deg,#3b82f6,#2563eb)':'rgba(255,255,255,0.05)',color:marksheetTab===t?'white':'rgba(255,255,255,0.6)'}}>
-                    {t === 'manual' ? '✏️ Manual Entry' : '🤖 AI Extract (Ollama)'}
+                    {t === 'manual' ? '✏️ Manual Entry' : '🤖 AI Extract (Docling)'}
                   </button>
                 ))}
               </div>

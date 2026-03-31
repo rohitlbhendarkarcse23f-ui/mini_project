@@ -1,150 +1,426 @@
-import { useState, useCallback, useEffect } from 'react';
-import { getStudentMarksheets } from '../../api/profiles';
+import { useState, useRef, useCallback } from 'react';
+import { parseMarksheet, calculateSGPA, GRADE_POINTS, VALID_GRADES } from '../../utils/aiMarksheetExtractor';
+import { saveMarksheets, saveStudentProfile } from '../../api/profiles';
+// ── Persist to localStorage + fire storage event ─────────────────
+function commitToLocalStorage(data) {
+  const sid = data.studentId?.toUpperCase();
+  if (!sid || sid === 'UNKNOWN') return;
 
+  const profiles = JSON.parse(localStorage.getItem('studentProfiles') || '{}');
+  const current  = profiles[sid] || {};
+  const sgpaList = [...(current.sgpaList || [])];
+  sgpaList[data.semester - 1] = data.sgpa;
+
+  const semesterData = {
+    ...(current.semesterData || {}),
+    [data.semester]: (data.subjects || []).map(s => ({
+      name: s.name, code: s.code, credits: s.credits,
+      grade: s.grade, gradePoints: s.gradePoints,
+    })),
+  };
+
+  const valid = sgpaList.filter(v => v != null && v > 0);
+  const cgpa  = valid.length > 0
+    ? parseFloat((valid.reduce((a, b) => a + b, 0) / valid.length).toFixed(2))
+    : data.sgpa;
+
+  profiles[sid] = {
+    ...current, student_id: sid,
+    name:       data.studentName || current.name || sid,
+    department: data.branch      || current.department || '',
+    cgpa, sgpaList, semesterData,
+    lastUpdated: new Date().toISOString(),
+  };
+  localStorage.setItem('studentProfiles', JSON.stringify(profiles));
+
+  const students = JSON.parse(localStorage.getItem('students') || '[]');
+  const idx = students.findIndex(s => s.student_id === sid);
+  const entry = { student_id: sid, name: profiles[sid].name, department: profiles[sid].department, cgpa, sgpaList, semesterData };
+  if (idx >= 0) students[idx] = { ...students[idx], ...entry };
+  else students.push(entry);
+  localStorage.setItem('students', JSON.stringify(students));
+  window.dispatchEvent(new Event('storage'));
+}
+
+async function commitToAPI(data) {
+  const sid = data.studentId?.toUpperCase();
+  if (!sid || sid === 'UNKNOWN') return;
+  const profiles     = JSON.parse(localStorage.getItem('studentProfiles') || '{}');
+  const profile      = profiles[sid] || {};
+  const marksheetArr = Object.entries(profile.semesterData || {}).map(([sem, subs]) => ({
+    semester: parseInt(sem), sgpa: profile.sgpaList?.[parseInt(sem) - 1] || 0, subjects: subs,
+  }));
+  await Promise.allSettled([
+    saveMarksheets(sid, marksheetArr),
+    saveStudentProfile(sid, { name: profile.name, department: profile.department, cgpa: profile.cgpa, sgpaList: profile.sgpaList, semesterData: profile.semesterData }),
+  ]);
+}
+
+// ── Constants ─────────────────────────────────────────────────────
+const STATUS_META = {
+  pending:  { label: 'Pending',  color: '#6366f1' },
+  parsing:  { label: 'Parsing…', color: '#f59e0b' },
+  review:   { label: 'Review',   color: '#3b82f6' },
+  saved:    { label: 'Saved ✓',  color: '#22c55e' },
+  error:    { label: 'Error',    color: '#ef4444' },
+};
+
+const GRADE_COLOR = {
+  'O':'#22c55e','A+':'#3b82f6','A':'#06b6d4','B+':'#f59e0b',
+  'B':'#f97316','C':'#ef4444','D':'#dc2626','F':'#7f1d1d',
+};
+
+const METHOD_BADGE = {
+  docling: { label: 'Docling', color: '#8b5cf6' },
+  ocr:     { label: 'OCR',     color: '#f59e0b' },
+};
+
+const inp = {
+  padding: '6px 10px', background: 'rgba(255,255,255,0.08)',
+  border: '1px solid rgba(255,255,255,0.15)', borderRadius: '7px',
+  color: 'white', fontSize: '13px', width: '100%',
+};
+
+// ── Component ─────────────────────────────────────────────────────
 export default function TeacherMarksheetParser() {
-  const [students, setStudents]   = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [search, setSearch]       = useState('');
-  const [expanded, setExpanded]   = useState(null);
+  const [queue, setQueue]       = useState([]);
+  const [expanded, setExpanded] = useState(null);
+  const [toast, setToast]       = useState('');
+  const nextId = useRef(0);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getStudentMarksheets();
-      setStudents(Array.isArray(data) ? data : []);
-    } catch { setStudents([]); }
-    finally { setLoading(false); }
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3500); };
+
+  // ── Enqueue files ──────────────────────────────────────────────
+  const enqueue = useCallback((files) => {
+    const items = Array.from(files)
+      .filter(f => f.type.startsWith('image/') || f.type === 'application/pdf')
+      .map(file => ({ id: ++nextId.current, file, status: 'pending', progress: '', data: null, errors: [], confidence: 0, method: '' }));
+    if (items.length) setQueue(prev => [...prev, ...items]);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  // ── Parse one item ─────────────────────────────────────────────
+  const parseItem = useCallback(async (id) => {
+    // Grab the file from current queue state
+    let file;
+    setQueue(prev => {
+      const item = prev.find(q => q.id === id);
+      if (item) file = item.file;
+      return prev.map(q => q.id === id ? { ...q, status: 'parsing', progress: 'Starting…' } : q);
+    });
 
-  const filtered = students.filter(s =>
-    !search ||
-    s.name?.toLowerCase().includes(search.toLowerCase()) ||
-    s.student_id?.toLowerCase().includes(search.toLowerCase())
-  );
+    if (!file) return;
 
-  const totalMarksheets = students.reduce((n, s) => n + s.marksheets.length, 0);
-  const withFiles       = students.reduce((n, s) => n + s.marksheets.filter(m => m.hasFile).length, 0);
+    const onProgress = ({ message }) =>
+      setQueue(prev => prev.map(q => q.id === id ? { ...q, progress: message } : q));
+
+    let result;
+    try {
+      result = await parseMarksheet(file, onProgress);
+    } catch (err) {
+      result = { success: false, data: null, confidence: 0, method: 'none', errors: [err.message] };
+    }
+
+    setQueue(prev => prev.map(q => q.id === id ? {
+      ...q,
+      status:     result.success ? 'review' : 'error',
+      progress:   '',
+      data:       result.data,
+      errors:     result.errors || [],
+      confidence: result.confidence || 0,
+      method:     result.method || '',
+    } : q));
+
+    if (result.success) setExpanded(id);
+  }, []);
+
+  const parseAll = () => setQueue(prev => { prev.filter(q => q.status === 'pending').forEach(q => parseItem(q.id)); return prev; });
+
+  // ── Inline edit ────────────────────────────────────────────────
+  const updateField = (id, field, value) =>
+    setQueue(prev => prev.map(q => q.id === id ? { ...q, data: { ...q.data, [field]: value } } : q));
+
+  const updateSubject = (id, idx, field, value) =>
+    setQueue(prev => prev.map(q => {
+      if (q.id !== id) return q;
+      const subjects = q.data.subjects.map((s, i) =>
+        i === idx ? { ...s, [field]: value, gradePoints: field === 'grade' ? (GRADE_POINTS[value] ?? s.gradePoints) : s.gradePoints } : s
+      );
+      return { ...q, data: { ...q.data, subjects, sgpa: calculateSGPA(subjects) } };
+    }));
+
+  const addSubject = (id) =>
+    setQueue(prev => prev.map(q => q.id !== id ? q : {
+      ...q, data: { ...q.data, subjects: [...q.data.subjects, { code: '', name: '', credits: 3, grade: 'B', gradePoints: 6, result: 'PASS' }] }
+    }));
+
+  const removeSubject = (id, idx) =>
+    setQueue(prev => prev.map(q => {
+      if (q.id !== id || q.data.subjects.length <= 1) return q;
+      const subjects = q.data.subjects.filter((_, i) => i !== idx);
+      return { ...q, data: { ...q.data, subjects, sgpa: calculateSGPA(subjects) } };
+    }));
+
+  // ── Save ───────────────────────────────────────────────────────
+  const saveItem = async (id) => {
+    const item = queue.find(q => q.id === id);
+    if (!item?.data) return;
+    if (!item.data.studentId || item.data.studentId === 'UNKNOWN') {
+      showToast('⚠️ Set a valid Student ID before saving'); return;
+    }
+    commitToLocalStorage(item.data);
+    await commitToAPI(item.data).catch(() => {});
+    setQueue(prev => prev.map(q => q.id === id ? { ...q, status: 'saved' } : q));
+    setExpanded(null);
+    showToast(`✅ Saved ${item.data.studentId} — Sem ${item.data.semester} (SGPA ${item.data.sgpa})`);
+  };
+
+  const saveAll   = () => queue.filter(q => q.status === 'review').forEach(q => saveItem(q.id));
+  const removeItem = (id) => setQueue(prev => prev.filter(q => q.id !== id));
+  const clearSaved = () => setQueue(prev => prev.filter(q => q.status !== 'saved'));
+
+  const counts = queue.reduce((acc, q) => { acc[q.status] = (acc[q.status] || 0) + 1; return acc; }, {});
 
   return (
     <div>
-      {/* Stats row */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
-        {[
-          { label: 'Students',    value: students.length,   color: '#6366f1' },
-          { label: 'Marksheets',  value: totalMarksheets,   color: '#3b82f6' },
-          { label: 'Files Uploaded', value: withFiles,      color: '#22c55e' },
-        ].map(({ label, value, color }) => (
-          <div key={label} style={{ flex: 1, minWidth: 110, padding: '14px 18px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${color}22`, borderRadius: 12 }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color }}>{value}</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>{label}</div>
+      {toast && (
+        <div style={{ position: 'fixed', bottom: 32, right: 32, background: '#1e1b4b', border: '1px solid rgba(139,92,246,0.4)', borderRadius: 12, padding: '13px 20px', color: 'white', fontSize: 14, zIndex: 9999, boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
+          {toast}
+        </div>
+      )}
+
+      {/* Parser info banner */}
+      <div style={{ padding: '10px 16px', background: 'rgba(139,92,246,0.07)', border: '1px solid rgba(139,92,246,0.18)', borderRadius: 10, marginBottom: 20, fontSize: 13, color: 'rgba(255,255,255,0.6)', display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ padding: '2px 8px', borderRadius: 6, background: 'rgba(139,92,246,0.2)', color: '#a78bfa', fontSize: 11, fontWeight: 600 }}>Docling</span>
+        <span>PDF · JPG · PNG — all parsed via Docling on the backend</span>
+      </div>
+
+      {/* Drop zone */}
+      <div
+        onDrop={e => { e.preventDefault(); enqueue(e.dataTransfer.files); }}
+        onDragOver={e => e.preventDefault()}
+        onClick={() => document.getElementById('tms-file-input').click()}
+        style={{ border: '2px dashed rgba(99,102,241,0.4)', borderRadius: 16, padding: '36px 24px', textAlign: 'center', background: 'rgba(99,102,241,0.03)', marginBottom: 20, cursor: 'pointer' }}
+      >
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="1.5" style={{ marginBottom: 10 }}>
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <p style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600, marginBottom: 4 }}>Drop marksheet files here or click to browse</p>
+        <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>PDF · JPG · PNG — all parsed via Docling, multiple files supported</p>
+        <input id="tms-file-input" type="file" multiple accept="image/*,.pdf" onChange={e => enqueue(e.target.files)} style={{ display: 'none' }} />
+      </div>
+
+      {/* Toolbar */}
+      {queue.length > 0 && (
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 8, flex: 1, flexWrap: 'wrap' }}>
+            {Object.entries(counts).map(([status, n]) => (
+              <span key={status} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 20, background: STATUS_META[status]?.color + '22', color: STATUS_META[status]?.color, border: `1px solid ${STATUS_META[status]?.color}44` }}>
+                {STATUS_META[status]?.label}: {n}
+              </span>
+            ))}
+          </div>
+          {counts.pending > 0 && (
+            <button onClick={parseAll} style={{ padding: '8px 18px', background: 'linear-gradient(135deg,#6366f1,#4f46e5)', border: 'none', borderRadius: 9, color: 'white', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+              Parse All ({counts.pending})
+            </button>
+          )}
+          {counts.review > 0 && (
+            <button onClick={saveAll} style={{ padding: '8px 18px', background: 'linear-gradient(135deg,#22c55e,#16a34a)', border: 'none', borderRadius: 9, color: 'white', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+              Save All ({counts.review})
+            </button>
+          )}
+          {counts.saved > 0 && (
+            <>
+              <button onClick={() => queue.filter(q => q.status === 'saved').forEach(q => parseItem(q.id))}
+                style={{ padding: '8px 18px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 9, color: '#fbbf24', fontSize: 13, cursor: 'pointer' }}>
+                ↺ Re-parse All Saved ({counts.saved})
+              </button>
+              <button onClick={clearSaved} style={{ padding: '8px 18px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 9, color: 'rgba(255,255,255,0.5)', fontSize: 13, cursor: 'pointer' }}>
+                Clear Saved
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Queue */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {queue.map(item => (
+          <div key={item.id} style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${STATUS_META[item.status]?.color}33`, borderRadius: 14, overflow: 'hidden' }}>
+
+            {/* Row header */}
+            <div
+              onClick={() => item.data && setExpanded(prev => prev === item.id ? null : item.id)}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 16px', cursor: item.data ? 'pointer' : 'default', flexWrap: 'wrap' }}
+            >
+              <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 20, background: STATUS_META[item.status]?.color + '22', color: STATUS_META[item.status]?.color, border: `1px solid ${STATUS_META[item.status]?.color}44`, whiteSpace: 'nowrap' }}>
+                {STATUS_META[item.status]?.label}
+              </span>
+
+              <span style={{ flex: 1, fontSize: 13, color: 'rgba(255,255,255,0.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
+                {item.file.name}
+              </span>
+
+              {item.status === 'parsing' && (
+                <span style={{ fontSize: 12, color: '#f59e0b', whiteSpace: 'nowrap' }}>{item.progress}</span>
+              )}
+
+              {item.data && (
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>
+                  {item.data.studentId} · Sem {item.data.semester} · SGPA {item.data.sgpa}
+                </span>
+              )}
+
+              {item.method && METHOD_BADGE[item.method] && (
+                <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: METHOD_BADGE[item.method].color + '22', color: METHOD_BADGE[item.method].color, border: `1px solid ${METHOD_BADGE[item.method].color}44`, whiteSpace: 'nowrap' }}>
+                  {METHOD_BADGE[item.method].label}
+                </span>
+              )}
+
+              {item.confidence > 0 && (
+                <span style={{ fontSize: 11, color: item.confidence >= 70 ? '#22c55e' : item.confidence >= 40 ? '#f59e0b' : '#ef4444', whiteSpace: 'nowrap' }}>
+                  {item.confidence}%
+                </span>
+              )}
+
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                {item.status === 'pending' && (
+                  <button onClick={e => { e.stopPropagation(); parseItem(item.id); }}
+                    style={{ padding: '5px 13px', background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 7, color: '#a5b4fc', fontSize: 12, cursor: 'pointer' }}>
+                    Parse
+                  </button>
+                )}
+                {item.status === 'review' && (
+                  <button onClick={e => { e.stopPropagation(); saveItem(item.id); }}
+                    style={{ padding: '5px 13px', background: 'rgba(34,197,94,0.2)', border: '1px solid rgba(34,197,94,0.4)', borderRadius: 7, color: '#4ade80', fontSize: 12, cursor: 'pointer' }}>
+                    Save
+                  </button>
+                )}
+                {item.status === 'error' && (
+                  <button onClick={e => { e.stopPropagation(); parseItem(item.id); }}
+                    style={{ padding: '5px 13px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 7, color: '#f87171', fontSize: 12, cursor: 'pointer' }}>
+                    Retry
+                  </button>
+                )}
+                {item.status === 'saved' && (
+                  <button onClick={e => { e.stopPropagation(); parseItem(item.id); }}
+                    style={{ padding: '5px 13px', background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 7, color: '#fbbf24', fontSize: 12, cursor: 'pointer' }}>
+                    ↺ Re-parse
+                  </button>
+                )}
+                <button onClick={e => { e.stopPropagation(); removeItem(item.id); }}
+                  style={{ padding: '5px 9px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 7, color: 'rgba(255,255,255,0.35)', fontSize: 12, cursor: 'pointer' }}>
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Errors */}
+            {item.errors?.length > 0 && item.status !== 'review' && (
+              <div style={{ padding: '0 16px 12px', fontSize: 12, color: '#f87171' }}>
+                {item.errors.map((e, i) => <div key={i}>⚠ {e}</div>)}
+              </div>
+            )}
+
+            {/* Expanded review panel */}
+            {expanded === item.id && item.data && (
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '18px 16px' }}>
+
+                {/* Meta fields */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(170px,1fr))', gap: 12, marginBottom: 18 }}>
+                  {[
+                    { label: 'Student ID',   field: 'studentId' },
+                    { label: 'Student Name', field: 'studentName' },
+                    { label: 'Branch / Dept',field: 'branch' },
+                    { label: 'Exam Year',    field: 'examYear' },
+                  ].map(({ label, field }) => (
+                    <div key={field}>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{label}</div>
+                      <input style={inp} value={item.data[field] || ''} onChange={e => updateField(item.id, field, e.target.value)} placeholder={label} />
+                    </div>
+                  ))}
+                  <div>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Semester</div>
+                    <select style={inp} value={item.data.semester} onChange={e => updateField(item.id, 'semester', parseInt(e.target.value))}>
+                      {[1,2,3,4,5,6,7,8].map(s => <option key={s} value={s} style={{ background: '#1a1d2e' }}>Semester {s}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.4px' }}>SGPA</div>
+                    <div style={{ fontSize: 28, fontWeight: 800, color: item.data.sgpa >= 8 ? '#22c55e' : item.data.sgpa >= 6 ? '#3b82f6' : '#f59e0b' }}>
+                      {item.data.sgpa.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Subjects */}
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.65)' }}>Subjects ({item.data.subjects.length})</span>
+                    <button onClick={() => addSubject(item.id)}
+                      style={{ padding: '4px 11px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 6, color: '#a5b4fc', fontSize: 12, cursor: 'pointer' }}>
+                      + Add
+                    </button>
+                  </div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ background: 'rgba(99,102,241,0.07)' }}>
+                          {['Code', 'Subject Name', 'Cr', 'Grade', 'GP', ''].map(h => (
+                            <th key={h} style={{ padding: '7px 9px', textAlign: 'left', color: 'rgba(255,255,255,0.5)', fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.07)' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {item.data.subjects.map((sub, idx) => (
+                          <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                            <td style={{ padding: '5px 9px', width: 85 }}>
+                              <input style={inp} value={sub.code || ''} onChange={e => updateSubject(item.id, idx, 'code', e.target.value)} placeholder="CS301" />
+                            </td>
+                            <td style={{ padding: '5px 9px' }}>
+                              <input style={inp} value={sub.name} onChange={e => updateSubject(item.id, idx, 'name', e.target.value)} placeholder="Subject name" />
+                            </td>
+                            <td style={{ padding: '5px 9px', width: 60 }}>
+                              <input style={{ ...inp, width: 48 }} type="number" min="1" max="6" value={sub.credits} onChange={e => updateSubject(item.id, idx, 'credits', parseInt(e.target.value) || 3)} />
+                            </td>
+                            <td style={{ padding: '5px 9px', width: 76 }}>
+                              <select style={inp} value={sub.grade} onChange={e => updateSubject(item.id, idx, 'grade', e.target.value)}>
+                                {VALID_GRADES.map(g => <option key={g} value={g} style={{ background: '#1a1d2e' }}>{g}</option>)}
+                              </select>
+                            </td>
+                            <td style={{ padding: '5px 9px', width: 36, fontWeight: 700, color: GRADE_COLOR[sub.grade] || 'white', textAlign: 'center' }}>
+                              {GRADE_POINTS[sub.grade] ?? '?'}
+                            </td>
+                            <td style={{ padding: '5px 9px', width: 32, textAlign: 'center' }}>
+                              {item.data.subjects.length > 1 && (
+                                <button onClick={() => removeSubject(item.id, idx)}
+                                  style={{ background: 'none', border: 'none', color: 'rgba(239,68,68,0.55)', cursor: 'pointer', fontSize: 14 }}>✕</button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {(item.status === 'review' || item.status === 'saved') && (
+                  <button onClick={() => saveItem(item.id)}
+                    style={{ padding: '10px 26px', background: item.status === 'saved' ? 'linear-gradient(135deg,#f59e0b,#d97706)' : 'linear-gradient(135deg,#22c55e,#16a34a)', border: 'none', borderRadius: 10, color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+                    {item.status === 'saved' ? '🔄 Re-save to Student Profile' : '💾 Save to Student Profile'}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         ))}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search student…"
-            style={{ padding: '9px 14px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 9, color: 'white', fontSize: 13, width: 200 }}
-          />
-          <button onClick={load} style={{ padding: '9px 16px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 9, color: 'rgba(255,255,255,0.7)', fontSize: 13, cursor: 'pointer' }}>↻</button>
-        </div>
       </div>
 
-      {loading && (
-        <div style={{ textAlign: 'center', padding: '60px', color: 'rgba(255,255,255,0.3)', fontSize: 14 }}>Loading…</div>
-      )}
-
-      {!loading && filtered.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '60px', color: 'rgba(255,255,255,0.25)', fontSize: 14 }}>
-          {search ? 'No students match your search.' : 'No students have uploaded marksheets yet.'}
+      {queue.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '48px 20px', color: 'rgba(255,255,255,0.2)', fontSize: 14 }}>
+          No marksheets queued. Drop files above to begin.
         </div>
       )}
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {filtered.map(student => {
-          const isOpen = expanded === student.student_id;
-          return (
-            <div key={student.student_id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, overflow: 'hidden' }}>
-
-              {/* Header row */}
-              <div
-                onClick={() => setExpanded(isOpen ? null : student.student_id)}
-                style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px', cursor: 'pointer' }}
-              >
-                <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(99,102,241,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: '#a5b4fc', fontSize: 16, flexShrink: 0 }}>
-                  {(student.name || student.student_id)[0]?.toUpperCase()}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {student.name || student.student_id}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 1 }}>
-                    {student.student_id} · {student.department || 'N/A'}
-                  </div>
-                </div>
-
-                {/* Semester chips preview */}
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                  {student.marksheets.map(ms => (
-                    <span key={ms.semester} style={{ fontSize: 11, padding: '3px 9px', borderRadius: 20, background: ms.hasFile ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.05)', color: ms.hasFile ? '#4ade80' : 'rgba(255,255,255,0.35)', border: `1px solid ${ms.hasFile ? 'rgba(34,197,94,0.25)' : 'rgba(255,255,255,0.08)'}` }}>
-                      Sem {ms.semester}{ms.sgpa > 0 ? ` · ${ms.sgpa.toFixed(2)}` : ''}
-                    </span>
-                  ))}
-                </div>
-
-                {student.cgpa > 0 && (
-                  <span style={{ fontSize: 13, fontWeight: 700, color: student.cgpa >= 8 ? '#22c55e' : student.cgpa >= 6 ? '#3b82f6' : '#f59e0b', flexShrink: 0 }}>
-                    {student.cgpa.toFixed(2)}
-                  </span>
-                )}
-
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" style={{ flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
-                  <polyline points="6 9 12 15 18 9"/>
-                </svg>
-              </div>
-
-              {/* Expanded: per-semester detail */}
-              {isOpen && (
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '16px 20px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {student.marksheets.map(ms => (
-                      <div key={ms.semester} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '12px 16px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                          <span style={{ fontWeight: 600, fontSize: 13, color: 'rgba(255,255,255,0.85)', minWidth: 80 }}>Semester {ms.semester}</span>
-
-                          {ms.sgpa > 0 && (
-                            <span style={{ fontSize: 12, color: ms.sgpa >= 8 ? '#22c55e' : ms.sgpa >= 6 ? '#3b82f6' : '#f59e0b', fontWeight: 700 }}>
-                              SGPA {ms.sgpa.toFixed(2)}
-                            </span>
-                          )}
-
-                          {ms.subjectCount > 0 && (
-                            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{ms.subjectCount} subjects</span>
-                          )}
-
-                          <span style={{ marginLeft: 'auto', fontSize: 11, padding: '3px 10px', borderRadius: 20, background: ms.hasFile ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.04)', color: ms.hasFile ? '#4ade80' : 'rgba(255,255,255,0.3)', border: `1px solid ${ms.hasFile ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.08)'}` }}>
-                            {ms.hasFile ? '📄 File uploaded' : 'No file'}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* CGPA summary */}
-                  {student.cgpa > 0 && (
-                    <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(99,102,241,0.06)', borderRadius: 9, border: '1px solid rgba(99,102,241,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Overall CGPA</span>
-                      <span style={{ fontSize: 18, fontWeight: 800, color: student.cgpa >= 8 ? '#22c55e' : student.cgpa >= 6 ? '#3b82f6' : '#f59e0b' }}>{student.cgpa.toFixed(2)}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }

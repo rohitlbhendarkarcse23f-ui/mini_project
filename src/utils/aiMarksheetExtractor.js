@@ -1,11 +1,10 @@
 /**
- * Marksheet Parser
- * Sends file to backend Ollama (llava) for structured extraction.
+ * Marksheet Parser — delegates to backend Docling service.
  */
 
 export const GRADE_POINTS = {
   'O': 10, 'A+': 9, 'A': 8, 'B+': 7, 'B': 6,
-  'C': 5,  'D': 4,  'E': 3, 'F': 0,  'P': 5, 'AB': 0
+  'C': 5,  'D': 4,  'E': 3, 'F': 0,  'P': 5, 'AB': 0,
 };
 
 export const VALID_GRADES = Object.keys(GRADE_POINTS);
@@ -18,16 +17,6 @@ export function calculateSGPA(subjects) {
     creds += Number(s.credits) || 0;
   }
   return creds > 0 ? parseFloat((pts / creds).toFixed(2)) : 0;
-}
-
-function scoreConfidence(data) {
-  let score = 0;
-  if (data.studentId && data.studentId !== 'UNKNOWN') score += 25;
-  if (data.studentName && data.studentName.length > 2)  score += 20;
-  if (data.semester >= 1 && data.semester <= 8)          score += 20;
-  if (data.subjects?.length >= 3)                        score += 25;
-  if (data.sgpa > 0)                                     score += 10;
-  return score;
 }
 
 function normalise(raw) {
@@ -46,7 +35,7 @@ function normalise(raw) {
   const sgpa = raw.sgpa > 0 ? parseFloat(Number(raw.sgpa).toFixed(2)) : calculateSGPA(subjects);
 
   return {
-    studentId:    String(raw.studentId || raw.enrollmentNo || 'UNKNOWN').trim().toUpperCase(),
+    studentId:    String(raw.studentId || 'UNKNOWN').trim().toUpperCase(),
     studentName:  String(raw.studentName || raw.name || '').trim(),
     semester:     Math.min(8, Math.max(1, parseInt(raw.semester) || 1)),
     branch:       String(raw.branch || raw.department || '').trim(),
@@ -62,7 +51,7 @@ function normalise(raw) {
 
 export async function parseMarksheet(file, onProgress) {
   try {
-    onProgress?.({ stage: 'ai', message: 'Sending to AI for analysis...' });
+    onProgress?.({ stage: 'docling', message: 'Sending to Docling…' });
 
     const API  = import.meta.env.VITE_API_BASE || 'http://localhost:5000/api';
     const form = new FormData();
@@ -75,13 +64,20 @@ export async function parseMarksheet(file, onProgress) {
     }
 
     const raw  = await res.json();
-    const data = normalise(raw);
-    const confidence = scoreConfidence(data);
+    // Backend already returns { success, data, confidence, method, errors }
+    // but data may need normalising if it came through the old path
+    const data = normalise(raw.data || raw);
+    const confidence = raw.confidence ?? (data.subjects.length >= 3 ? 75 : 30);
 
     onProgress?.({ stage: 'done', message: 'Extraction complete' });
-    return { success: data.subjects.length > 0, data, confidence, method: 'ollama', errors: [] };
+    return {
+      success:    data.subjects.length > 0,
+      data,
+      confidence,
+      method:     raw.method || 'docling',
+      errors:     raw.errors || [],
+    };
   } catch (err) {
-    console.error('Marksheet parse error:', err);
-    return { success: false, data: null, confidence: 0, method: 'none', errors: [err.message || 'Unknown error'] };
+    return { success: false, data: null, confidence: 0, method: 'none', errors: [err.message] };
   }
 }

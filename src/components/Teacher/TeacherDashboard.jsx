@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { getEvents, addEvent, removeEvent } from '../../utils/eventsStore';
 import { getJobs, getInternships } from '../../utils/jobsStore';
 import { getClubs, deleteClub, addClub } from '../../utils/clubsStore';
-import MeritListDemo from '../Demo/MeritListDemo';
+import MeritList from './MeritList';
 import TeacherMarksheetParser from './TeacherMarksheetParser';
 import { getTeacherProfile, saveTeacherProfile } from '../../api/profiles';
 
@@ -58,7 +58,7 @@ function TeacherDashboard() {
       case 'internships': return <InternshipsContent />;
       case 'events': return <EventsContent />;
       case 'clubs': return <ClubsContent />;
-      case 'merit': return <MeritListDemo />;
+      case 'merit': return <MeritList />;
       case 'marksheets': return <TeacherMarksheetParser />;
       case 'profile': return <ProfileContent teacher={teacher} teacherName={teacherName} teacherId={teacherId} teacherDept={teacherDept} />;
       default: return <DashboardContent teacherName={teacherName} teacherId={teacherId} teacherDept={teacherDept} />;

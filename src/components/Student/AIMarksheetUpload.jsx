@@ -40,7 +40,7 @@ const AIMarksheetUpload = ({ onDataExtracted }) => {
       } else {
         const errorMsg = result.errors.join(', ');
         console.error('Extraction error:', errorMsg);
-        alert(`AI Extraction failed: ${errorMsg}\n\nPlease try:\n1. Using a clearer image\n2. Checking your internet connection\n3. Verifying the API key is valid\n\nOr use manual entry instead.`);
+        alert(`Extraction failed: ${errorMsg}\n\nPlease try:\n1. Using a clearer image or PDF\n2. Checking Docling service is running (port 5001)\n3. Check backend terminal for errors\n\nOr use manual entry instead.`);
       }
     } catch (error) {
       console.error('Extraction error:', error);
