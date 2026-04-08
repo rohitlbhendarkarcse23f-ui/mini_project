@@ -362,3 +362,4 @@ Set `VITE_API_BASE` to your production backend URL before building.
 ## License
 
 Private and proprietary — KDK College of Engineering.
+# mini_project
