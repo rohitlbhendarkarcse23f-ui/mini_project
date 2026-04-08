@@ -14,18 +14,14 @@ html, body {
 
 .signup-page {
   min-height: 100vh;
-  height: 100%;
   width: 100%;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   background: linear-gradient(135deg, #111520, #020206);
   font-family: 'Inter', sans-serif;
-  position: fixed;
-  top: 0;
-  left: 0;
-  overflow: auto;
   padding: 40px 20px;
+  overflow-y: auto;
 }
 
 .signup-card {
@@ -51,7 +47,7 @@ html, body {
   left: 20px;
   background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.069);
+  color: rgba(255, 255, 255, 0.7);
   font-size: 24px;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -87,7 +83,7 @@ html, body {
   font-weight: 700;
   color: white;
   margin-bottom: 8px;
-  background: linear-gradient(135deg, #60a5fa, #051124);
+  background: linear-gradient(135deg, #60a5fa, #3b82f6);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

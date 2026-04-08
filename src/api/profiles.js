@@ -121,14 +121,14 @@ export const saveTeacherProfile = async (teacher_id, data) => {
 };
 
 // ── Recruiter Profile ────────────────────────────────────────────
-export const getRecruiterProfile = async (recruiter_id) => {
-  const res = await fetch(`${API_BASE}/recruiter/profile/${recruiter_id}`, { headers: h() });
+export const getRecruiterProfile = async (company_id) => {
+  const res = await fetch(`${API_BASE}/recruiter/profile/${company_id}`, { headers: h() });
   if (res.status === 404) return null;
   return res.json();
 };
 
-export const saveRecruiterProfile = async (recruiter_id, data) => {
-  const res = await fetch(`${API_BASE}/recruiter/profile/${recruiter_id}`, {
+export const saveRecruiterProfile = async (company_id, data) => {
+  const res = await fetch(`${API_BASE}/recruiter/profile/${company_id}`, {
     method: 'PUT', headers: h(), body: JSON.stringify(data)
   });
   return res.json();

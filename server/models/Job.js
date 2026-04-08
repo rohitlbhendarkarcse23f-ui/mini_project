@@ -8,8 +8,12 @@ const jobSchema = new mongoose.Schema({
   salary: String,
   deadline: String,
   color: String,
+  description: { type: String, default: '' },
+  min_cgpa: { type: Number, default: 0 },
+  eligible_branches: { type: String, default: '' },
   type: { type: String, enum: ['Placement', 'Internship'], required: true },
   recruiter_id: String,
+  company_id: String,
   created_at: { type: Date, default: Date.now }
 });
 

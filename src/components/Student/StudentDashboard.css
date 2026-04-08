@@ -177,6 +177,24 @@
   gap: 16px;
 }
 
+/* Theme toggle button — replaces inline styles in all dashboards */
+.dashboard-theme-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  color: rgba(255,255,255,0.75);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  font-family: 'Inter', sans-serif;
+}
+.dashboard-theme-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+
 .search-bar {
   position: relative;
 }
@@ -2789,4 +2807,189 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RESPONSIVE — Mobile & Tablet
+   ══════════════════════════════════════════════════════════════ */
+
+/* Hamburger toggle button (hidden on desktop) */
+.sidebar-toggle {
+  display: none;
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 300;
+  width: 44px;
+  height: 44px;
+  background: #0B0F19;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+}
+
+/* Overlay behind open sidebar on mobile */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 199;
+}
+
+.sidebar-overlay.open { display: block; }
+
+@media (max-width: 1024px) {
+  .opportunities-grid,
+  .events-grid,
+  .clubs-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .bottom-section {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .top-performers {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  /* Show hamburger */
+  .sidebar-toggle { display: flex; }
+
+  /* Sidebar slides in from left */
+  .sidebar,
+  .teacher-sidebar,
+  .recruiter-sidebar {
+    position: fixed;
+    left: -280px;
+    top: 0;
+    height: 100vh;
+    width: 260px !important;
+    z-index: 200;
+    transition: left 0.3s ease;
+    overflow-y: auto;
+  }
+
+  .sidebar.open,
+  .teacher-sidebar.open,
+  .recruiter-sidebar.open {
+    left: 0;
+  }
+
+  /* Main content takes full width */
+  .main-content {
+    margin-left: 0 !important;
+  }
+
+  .top-header {
+    padding: 16px 20px 16px 72px;
+  }
+
+  .content-wrapper {
+    padding: 20px 16px;
+  }
+
+  .section-title { font-size: 18px; }
+
+  .greeting-card {
+    padding: 24px 20px;
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+
+  .greeting-card h1 { font-size: 26px; }
+
+  .badge-icon { display: none; }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .stat-card { padding: 16px; }
+  .stat-card h2 { font-size: 32px; }
+
+  .bottom-section { grid-template-columns: 1fr; gap: 16px; }
+
+  .profile-header-card {
+    flex-direction: column;
+    gap: 20px;
+    text-align: center;
+  }
+
+  .profile-avatar-section { flex-direction: column; align-items: center; }
+  .profile-actions { flex-direction: row; flex-wrap: wrap; justify-content: center; }
+
+  .profile-grid { grid-template-columns: 1fr; }
+
+  .merit-filters {
+    flex-direction: column;
+  }
+
+  .merit-search { width: 100%; }
+
+  .top-performers {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .merit-table-container { overflow-x: auto; }
+
+  .payment-summary { grid-template-columns: 1fr; }
+
+  .clubs-stats { grid-template-columns: repeat(2, 1fr); }
+
+  .messages-content-whatsapp {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .chat-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    max-height: 300px;
+  }
+
+  .chat-main { min-height: 400px; }
+
+  .info-grid { grid-template-columns: 1fr; }
+
+  .modal-content { width: 95% !important; max-width: 95% !important; }
+}
+
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .clubs-stats { grid-template-columns: repeat(2, 1fr); }
+
+  .event-filters,
+  .club-filters {
+    gap: 6px;
+  }
+
+  .event-filters button,
+  .club-filters button {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .recruiter-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }

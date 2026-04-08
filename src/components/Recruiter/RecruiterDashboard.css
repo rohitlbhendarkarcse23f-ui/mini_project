@@ -82,12 +82,12 @@
   flex-shrink: 0;
 }
 
-.sidebar-nav button:hover {
+.recruiter-sidebar-nav button:hover {
   background: rgba(255,255,255,0.05);
   color: white;
 }
 
-.sidebar-nav button.active {
+.recruiter-sidebar-nav button.active {
   background: linear-gradient(90deg, #f97316, #ea580c);
   color: white;
   box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
@@ -502,17 +502,49 @@
 }
 
 @media (max-width: 768px) {
-  .sidebar {
-    width: 80px;
+  .recruiter-sidebar {
+    position: fixed;
+    left: -280px;
+    top: 0;
+    height: 100vh;
+    width: 260px !important;
+    z-index: 200;
+    transition: left 0.3s ease;
   }
-  
+
+  .recruiter-sidebar.open { left: 0; }
+
   .main-content {
-    margin-left: 80px;
+    margin-left: 0 !important;
   }
-  
+
+  .top-header {
+    padding: 16px 20px 16px 72px;
+  }
+
+  .content-wrapper { padding: 20px 16px; }
+
   .stats-grid, .bottom-section {
     grid-template-columns: 1fr;
   }
+
+  .opportunities-grid,
+  .events-grid,
+  .clubs-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .merit-table-container { overflow-x: auto; }
+
+  .top-performers { grid-template-columns: 1fr; }
+
+  .merit-filters { flex-direction: column; }
+
+  .modal-content { width: 95% !important; max-width: 95% !important; }
+
+  .profile-grid { grid-template-columns: 1fr; }
+
+  .info-grid { grid-template-columns: 1fr; }
 }
 
 .internships-content {

@@ -21,12 +21,21 @@ router.get('/:student_id', authMiddleware, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Auto-calculate CGPA from sgpaList
+function recalcCGPA(body) {
+  const sgpaList = body.sgpaList;
+  if (!Array.isArray(sgpaList)) return body;
+  const valid = sgpaList.filter(v => v != null && v > 0);
+  const cgpa = valid.length > 0 ? parseFloat((valid.reduce((a, b) => a + b, 0) / valid.length).toFixed(2)) : (body.cgpa || 0);
+  return { ...body, cgpa };
+}
+
 // Create or update full profile
 router.put('/:student_id', authMiddleware, async (req, res) => {
   try {
     const profile = await StudentProfile.findOneAndUpdate(
       { student_id: req.params.student_id },
-      { ...req.body, updated_at: new Date() },
+      { ...recalcCGPA(req.body), updated_at: new Date() },
       { upsert: true, new: true }
     );
     res.json(profile);
@@ -69,12 +78,20 @@ router.put('/:student_id/certificates', authMiddleware, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Update marksheets
+// Update marksheets — also recalculate sgpaList + CGPA from submitted marksheets
 router.put('/:student_id/marksheets', authMiddleware, async (req, res) => {
   try {
+    const marksheets = req.body.marksheets || [];
+    // Rebuild sgpaList from marksheets
+    const sgpaList = [];
+    marksheets.forEach(m => {
+      if (m.semester && m.sgpa > 0) sgpaList[m.semester - 1] = m.sgpa;
+    });
+    const valid = sgpaList.filter(v => v != null && v > 0);
+    const cgpa = valid.length > 0 ? parseFloat((valid.reduce((a, b) => a + b, 0) / valid.length).toFixed(2)) : 0;
     const profile = await StudentProfile.findOneAndUpdate(
       { student_id: req.params.student_id },
-      { marksheets: req.body.marksheets, updated_at: new Date() },
+      { marksheets, sgpaList, cgpa, updated_at: new Date() },
       { upsert: true, new: true }
     );
     res.json(profile.marksheets);

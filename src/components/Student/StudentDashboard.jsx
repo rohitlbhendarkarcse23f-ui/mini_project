@@ -1,17 +1,19 @@
 import './StudentDashboard.css';
 import './StudentDashboard2.css';
 import '../../theme.css';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getEvents, getRemovedEvents } from '../../utils/eventsStore';
-import { getJobs, getInternships } from '../../utils/jobsStore';
+import { getJobs, getInternships, applyForJob } from '../../utils/jobsStore';
 import { getClubs } from '../../utils/clubsStore';
 import MarksheetUpload from './MarksheetUpload';
 import AIMarksheetUpload from './AIMarksheetUpload';
 import { getStudentProfile, saveStudentProfile, saveSkills, saveExperiences, saveCertificates, saveMarksheets, uploadFile } from '../../api/profiles';
+import { toast } from '../Toast';
 
 function StudentDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const [student, setStudent] = useState(() => {
     const stored = localStorage.getItem('currentStudent');
@@ -25,12 +27,11 @@ function StudentDashboard() {
   }, [theme]);
 
   useEffect(() => {
-    // Clear any leftover hash from previous navigation so refresh always starts on dashboard
     if (window.location.hash) window.history.replaceState(null, '', window.location.pathname);
 
     const handleHash = () => {
       const hash = window.location.hash.replace('#', '');
-      if (hash && ['internships', 'events', 'clubs', 'profile'].includes(hash)) {
+      if (hash && ['internships', 'jobs', 'events', 'clubs', 'profile'].includes(hash)) {
         setActiveTab(hash);
       }
     };
@@ -42,8 +43,10 @@ function StudentDashboard() {
     switch(activeTab) {
       case 'dashboard': return 'Dashboard';
       case 'internships': return 'Internships';
+      case 'jobs': return 'Job Placements';
       case 'events': return 'Events';
       case 'clubs': return 'Clubs';
+      case 'messages': return 'Messages';
       case 'profile': return 'Profile';
       default: return 'Dashboard';
     }
@@ -51,24 +54,28 @@ function StudentDashboard() {
 
   const renderContent = () => {
     switch(activeTab) {
-      case 'dashboard':
-        return <DashboardContent />;
-      case 'internships':
-        return <InternshipsContent />;
-      case 'events':
-        return <EventsContent />;
-      case 'clubs':
-        return <ClubsContent />;
-      case 'profile':
-        return <ProfileContent />;
-      default:
-        return <DashboardContent />;
+      case 'dashboard': return <DashboardContent />;
+      case 'internships': return <InternshipsContent />;
+      case 'jobs': return <JobsContent />;
+      case 'events': return <EventsContent />;
+      case 'clubs': return <ClubsContent />;
+      case 'profile': return <ProfileContent />;
+      case 'messages': return <MessagesContent />;
+      default: return <DashboardContent />;
     }
   };
 
+  const closeSidebar = () => setSidebarOpen(false);
+
   return (
     <div className="dashboard-layout student-dashboard-layout">
-      <aside className="sidebar">
+      <button className="sidebar-toggle" onClick={() => setSidebarOpen(o => !o)} aria-label="Toggle menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+      <div className={`sidebar-overlay${sidebarOpen ? ' open' : ''}`} onClick={closeSidebar} />
+      <aside className={`sidebar${sidebarOpen ? ' open' : ''}`}>
         <div className="sidebar-header">
           <div className="logo-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
@@ -82,31 +89,20 @@ function StudentDashboard() {
         </div>
         
         <nav className="sidebar-nav">
-          <button className={activeTab === 'dashboard' ? 'active' : ''} onClick={() => setActiveTab('dashboard')}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-            </svg> Dashboard
-          </button>
-          <button className={activeTab === 'internships' ? 'active' : ''} onClick={() => setActiveTab('internships')}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-            </svg> Internships
-          </button>
-          <button className={activeTab === 'events' ? 'active' : ''} onClick={() => setActiveTab('events')}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-            </svg> Events
-          </button>
-          <button className={activeTab === 'clubs' ? 'active' : ''} onClick={() => setActiveTab('clubs')}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg> Clubs
-          </button>
-          <button className={activeTab === 'profile' ? 'active' : ''} onClick={() => setActiveTab('profile')}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-            </svg> Profile
-          </button>
+          {[
+            { key: 'dashboard', label: 'Dashboard', icon: <><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></> },
+            { key: 'jobs', label: 'Jobs', icon: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></> },
+            { key: 'internships', label: 'Internships', icon: <><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></> },
+            { key: 'events', label: 'Events', icon: <><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></> },
+            { key: 'clubs', label: 'Clubs', icon: <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></> },
+            { key: 'messages', label: 'Messages', icon: <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/> },
+            { key: 'profile', label: 'Profile', icon: <><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></> },
+          ].map(({ key, label, icon }) => (
+            <button key={key} className={activeTab === key ? 'active' : ''} onClick={() => { setActiveTab(key); closeSidebar(); }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">{icon}</svg>
+              {label}
+            </button>
+          ))}
         </nav>
 
         <div className="sidebar-footer">
@@ -117,7 +113,8 @@ function StudentDashboard() {
               <p className="user-id">{student.student_id || ''}</p>
             </div>
           </div>
-          <button className="signout-btn" onClick={() => { localStorage.removeItem('currentStudent'); localStorage.removeItem('token'); navigate('/login'); }}>Sign Out</button>
+          <button className="signout-btn" onClick={() => { localStorage.removeItem('currentStudent'); localStorage.removeItem('token'); navigate('/login'); closeSidebar(); }}>Sign Out</button>
+          <button className="home-link-btn" onClick={() => navigate('/')}>← Back to Home</button>
         </div>
       </aside>
 
@@ -125,10 +122,18 @@ function StudentDashboard() {
         <div className="top-header">
           <h2 className="section-title">{getPageTitle()}</h2>
           <div className="header-right">
+            <NotificationBell />
+            <div className="header-profile-chip">
+              <div className="header-avatar">{(student.name || student.student_id || 'S')[0].toUpperCase()}</div>
+              <div className="header-profile-info">
+                <span className="header-profile-name">{student.name || student.email?.split('@')[0] || 'Student'}</span>
+                <span className="header-profile-id">{student.student_id}</span>
+              </div>
+            </div>
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:'10px',padding:'8px 10px',cursor:'pointer',display:'flex',alignItems:'center',gap:'6px',color:'rgba(255,255,255,0.8)',fontSize:'13px',fontWeight:'500',transition:'all 0.2s'}}
+              className="dashboard-theme-btn"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 {theme === 'dark' ? (
@@ -166,6 +171,78 @@ const DEPARTMENTS = [
   'Civil Engineering', 'Electrical Engineering', 'Chemical Engineering', 'Other'
 ];
 
+function NotificationBell() {
+  const [notifs, setNotifs] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [seen, setSeen] = useState(() => parseInt(localStorage.getItem('notif_seen') || '0'));
+
+  useEffect(() => {
+    const API = import.meta.env.VITE_API_BASE || 'http://localhost:5000/api';
+    const token = localStorage.getItem('token');
+    let es;
+    try {
+      es = new EventSource(`${API}/messages/stream?token=${token}`);
+      es.onmessage = (e) => {
+        try {
+          const { type, events = [], jobs = [] } = JSON.parse(e.data);
+          if (type === 'init' || type === 'update') {
+            const evN = events.slice(0, 3).map(ev => ({ id: `ev_${ev._id}`, text: `New event: ${ev.title}`, time: ev.date || '', type: 'event' }));
+            const jobN = jobs.slice(0, 3).map(j => ({ id: `job_${j._id}`, text: `New job: ${j.role} at ${j.company}`, time: j.deadline || '', type: 'job' }));
+            setNotifs([...evN, ...jobN]);
+          }
+        } catch {}
+      };
+      es.onerror = () => es.close();
+    } catch {
+      // SSE not available, fall back to one-time fetch
+      Promise.all([
+        fetch(`${API}/events`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => []),
+        fetch(`${API}/jobs`,   { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).catch(() => [])
+      ]).then(([events, jobs]) => {
+        const evN  = (Array.isArray(events) ? events : []).slice(0, 3).map(e => ({ id: `ev_${e._id||e.id}`, text: `New event: ${e.title}`, time: e.date || '', type: 'event' }));
+        const jobN = (Array.isArray(jobs)   ? jobs   : []).slice(0, 3).map(j => ({ id: `job_${j._id||j.id}`, text: `New job: ${j.role} at ${j.company}`, time: j.deadline || '', type: 'job' }));
+        setNotifs([...evN, ...jobN]);
+      });
+    }
+    return () => es?.close();
+  }, []);
+
+  const unread = Math.max(0, notifs.length - seen);
+
+  const handleOpen = () => {
+    setOpen(o => !o);
+    if (!open) { setSeen(notifs.length); localStorage.setItem('notif_seen', notifs.length); }
+  };
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button onClick={handleOpen} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '8px 10px', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', position: 'relative' }}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        {unread > 0 && <span style={{ position: 'absolute', top: '-4px', right: '-4px', background: '#ef4444', color: 'white', borderRadius: '50%', width: '16px', height: '16px', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700' }}>{unread}</span>}
+      </button>
+      {open && (
+        <div style={{ position: 'absolute', right: 0, top: '44px', width: '300px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', boxShadow: '0 20px 60px rgba(0,0,0,0.5)', zIndex: 1000, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)', fontWeight: '600', fontSize: '14px' }}>Notifications</div>
+          {notifs.length === 0
+            ? <div style={{ padding: '24px', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '13px' }}>No notifications</div>
+            : notifs.map(n => (
+              <div key={n.id} style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: n.type === 'event' ? '#3b82f6' : '#10b981', marginTop: '5px', flexShrink: 0 }} />
+                <div>
+                  <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.85)', marginBottom: '2px' }}>{n.text}</p>
+                  {n.time && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>{n.time}</span>}
+                </div>
+              </div>
+            ))
+          }
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ProfileContent() {
   const student = JSON.parse(localStorage.getItem('currentStudent') || '{}');
   const [showEditModal, setShowEditModal] = useState(false);
@@ -175,8 +252,8 @@ function ProfileContent() {
   const [showExpModal, setShowExpModal] = useState(false);
   const [showCertModal, setShowCertModal] = useState(false);
   const [showIdCard, setShowIdCard] = useState(false);
-  const [showToast, setShowToast] = useState(false);
-  const [toastMsg, setToastMsg] = useState('');
+
+  const showToastMsg = (msg) => toast(msg);
 
   const [profileData, setProfileData] = useState({
     name: student.name || student.email?.split('@')[0] || '',
@@ -221,11 +298,6 @@ function ProfileContent() {
       }
     }).catch(() => {});
   }, [student.student_id]);
-
-  const showToastMsg = (msg) => {
-    setToastMsg(msg); setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
-  };
 
   // ── Edit Profile ──────────────────────────────────────────────
   const validateForm = () => {
@@ -478,13 +550,6 @@ function ProfileContent() {
 
   return (
     <div className="profile-content">
-      {/* Toast */}
-      {showToast && (
-        <div style={{position:'fixed',bottom:'32px',right:'32px',background:'#1e3a8a',border:'1px solid rgba(59,130,246,0.4)',borderRadius:'12px',padding:'14px 20px',color:'white',fontSize:'14px',zIndex:9999,boxShadow:'0 8px 24px rgba(0,0,0,0.4)'}}>
-          {toastMsg}
-        </div>
-      )}
-
       {/* ── Edit Profile Modal ── */}
       {showEditModal && (
         <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
@@ -1152,12 +1217,37 @@ function PaymentsContent() {
   };
   
   const handleProcessPayment = () => {
-    alert('Payment processed successfully!');
     setShowPaymentModal(false);
+    toast('Payment processed successfully!');
   };
-  
-  const handleDownloadReceipt = () => {
-    alert('Receipt downloaded successfully!');
+
+  const handleDownloadReceipt = async (payment) => {
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF({ unit: 'mm', format: 'a5' });
+    const W = 148;
+    doc.setFillColor(30, 58, 138); doc.rect(0, 0, W, 28, 'F');
+    doc.setTextColor(255,255,255); doc.setFontSize(14); doc.setFont('helvetica','bold');
+    doc.text('Smart Campus', 10, 12);
+    doc.setFontSize(9); doc.setFont('helvetica','normal');
+    doc.text('KDK College of Engineering', 10, 20);
+    doc.text('PAYMENT RECEIPT', W - 10, 12, { align: 'right' });
+    let y = 38;
+    doc.setTextColor(30,30,30); doc.setFontSize(10);
+    const row = (l, v) => { doc.setFont('helvetica','bold'); doc.text(l, 10, y); doc.setFont('helvetica','normal'); doc.text(String(v), 80, y); y += 8; };
+    row('Student Name:', student.name || student.email?.split('@')[0] || 'Student');
+    row('Student ID:', student.student_id || 'N/A');
+    row('Payment Type:', payment.title);
+    row('Semester:', payment.semester);
+    row('Transaction ID:', payment.transactionId || 'N/A');
+    row('Payment Date:', payment.paidDate || new Date().toLocaleDateString('en-IN'));
+    doc.setDrawColor(200,200,200); doc.line(10, y, W - 10, y); y += 8;
+    doc.setFont('helvetica','bold'); doc.setFontSize(12);
+    doc.text('Amount Paid:', 10, y); doc.setTextColor(22,163,74);
+    doc.text(`Rs. ${payment.amount.toLocaleString()}`, 80, y);
+    y += 14; doc.setTextColor(150,150,150); doc.setFontSize(8); doc.setFont('helvetica','normal');
+    doc.text('This is a computer-generated receipt.', W / 2, y, { align: 'center' });
+    doc.save(`receipt_${payment.title.replace(/\s+/g,'_')}.pdf`);
+    toast('Receipt downloaded!');
   };
 
   return (
@@ -1329,7 +1419,7 @@ function PaymentsContent() {
                   <p>This is a computer-generated receipt</p>
                 </div>
               </div>
-              <button className="save-changes-btn" onClick={handleDownloadReceipt}>
+              <button className="save-changes-btn" onClick={() => handleDownloadReceipt(selectedPayment)}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
                 </svg>
@@ -1629,7 +1719,34 @@ function ClubsContent() {
                   <p>This is a computer-generated receipt</p>
                 </div>
               </div>
-              <button className="save-changes-btn" onClick={() => alert('Receipt downloaded!')}>
+              <button className="save-changes-btn" onClick={async () => {
+                const { jsPDF } = await import('jspdf');
+                const doc = new jsPDF({ unit: 'mm', format: 'a5' });
+                const W = 148;
+                doc.setFillColor(30, 58, 138); doc.rect(0, 0, W, 28, 'F');
+                doc.setTextColor(255,255,255); doc.setFontSize(14); doc.setFont('helvetica','bold');
+                doc.text('Smart Campus', 10, 12);
+                doc.setFontSize(9); doc.setFont('helvetica','normal');
+                doc.text('KDK College of Engineering', 10, 20);
+                doc.text('CLUB MEMBERSHIP RECEIPT', W - 10, 12, { align: 'right' });
+                let y = 38;
+                doc.setTextColor(30,30,30); doc.setFontSize(10);
+                const row = (l, v) => { doc.setFont('helvetica','bold'); doc.text(l, 10, y); doc.setFont('helvetica','normal'); doc.text(String(v), 80, y); y += 8; };
+                row('Student Name:', student.name || student.email?.split('@')[0] || 'Student');
+                row('Student ID:', student.student_id || 'N/A');
+                row('Club Name:', receiptClub.name);
+                row('Category:', receiptClub.category);
+                row('Transaction ID:', `TXN${Date.now().toString().slice(-9)}`);
+                row('Payment Date:', new Date().toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'}));
+                doc.setDrawColor(200,200,200); doc.line(10, y, W - 10, y); y += 8;
+                doc.setFont('helvetica','bold'); doc.setFontSize(12);
+                doc.text('Amount Paid:', 10, y); doc.setTextColor(22,163,74);
+                doc.text('Rs. 500', 80, y);
+                y += 14; doc.setTextColor(150,150,150); doc.setFontSize(8); doc.setFont('helvetica','normal');
+                doc.text('This is a computer-generated receipt.', W / 2, y, { align: 'center' });
+                doc.save(`club_receipt_${receiptClub.name.replace(/\s+/g,'_')}.pdf`);
+                toast('Receipt downloaded!');
+              }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
                 </svg>
@@ -1643,87 +1760,132 @@ function ClubsContent() {
   );
 }
 
+const API_BASE_MSG = import.meta.env.VITE_API_BASE || 'http://localhost:5000/api';
+
 function MessagesContent() {
-  const [selectedChat, setSelectedChat] = useState(null);
+  const student = JSON.parse(localStorage.getItem('currentStudent') || '{}');
+  const senderName = student.name || student.email?.split('@')[0] || 'Student';
+  const [rooms, setRooms] = useState([]);
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState('');
-  
-  const chats = [
-    { id: 1, name: 'CSE Batch 2024', type: 'group', lastMsg: 'Rahul: Assignment deadline extended', time: '10:30 AM', unread: 3, avatar: 'C' },
-    { id: 2, name: 'Dr. Sharma', type: 'personal', lastMsg: 'Your project looks good', time: '9:15 AM', unread: 1, avatar: 'D' },
-    { id: 3, name: 'Tech Club', type: 'group', lastMsg: 'Priya: Hackathon tomorrow!', time: 'Yesterday', unread: 0, avatar: 'T' },
-    { id: 4, name: 'Placement Cell', type: 'group', lastMsg: 'Google drive on March 5', time: 'Yesterday', unread: 5, avatar: 'P' }
-  ];
-  
-  const chatMessages = {
-    1: [
-      { id: 1, sender: 'Rahul', text: 'Hey everyone! Assignment deadline extended to Friday', time: '10:25 AM', isMine: false },
-      { id: 2, sender: 'You', text: 'Great news! Thanks for the update', time: '10:26 AM', isMine: true },
-      { id: 3, sender: 'Priya', text: 'Finally some relief 😅', time: '10:28 AM', isMine: false },
-      { id: 4, sender: 'Amit', text: 'Does anyone have the reference material?', time: '10:30 AM', isMine: false }
-    ],
-    2: [
-      { id: 1, sender: 'Dr. Sharma', text: 'I reviewed your project proposal', time: '9:10 AM', isMine: false },
-      { id: 2, sender: 'Dr. Sharma', text: 'Your project looks good. Just add more details in methodology', time: '9:15 AM', isMine: false },
-      { id: 3, sender: 'You', text: 'Thank you sir! I will update it by tomorrow', time: '9:20 AM', isMine: true }
-    ]
+  const [sending, setSending] = useState(false);
+  const lastMsgRef = useRef(null);
+  const pollRef = useRef(null);
+  const sinceRef = useRef(null);
+
+  const authH = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` });
+
+  // Load rooms
+  useEffect(() => {
+    fetch(`${API_BASE_MSG}/messages/rooms`, { headers: authH() })
+      .then(r => r.json()).then(data => { if (Array.isArray(data)) setRooms(data); }).catch(() => {});
+  }, []);
+
+  // Load messages + start polling when room changes
+  useEffect(() => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    if (!selectedRoom) return;
+    sinceRef.current = null;
+    setMessages([]);
+
+    const fetchMsgs = (since) =>
+      fetch(`${API_BASE_MSG}/messages/${selectedRoom}${since ? `?since=${since}` : ''}`, { headers: authH() })
+        .then(r => r.json()).then(data => {
+          if (!Array.isArray(data) || data.length === 0) return;
+          setMessages(prev => {
+            const ids = new Set(prev.map(m => m._id));
+            const newMsgs = data.filter(m => !ids.has(m._id));
+            return [...prev, ...newMsgs];
+          });
+          sinceRef.current = data[data.length - 1].created_at;
+        }).catch(() => {});
+
+    fetchMsgs(null);
+    pollRef.current = setInterval(() => fetchMsgs(sinceRef.current), 3000);
+    return () => clearInterval(pollRef.current);
+  }, [selectedRoom]);
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    lastMsgRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!messageText.trim() || !selectedRoom || sending) return;
+    setSending(true);
+    try {
+      const res = await fetch(`${API_BASE_MSG}/messages/${selectedRoom}`, {
+        method: 'POST', headers: authH(),
+        body: JSON.stringify({ text: messageText.trim(), sender_name: senderName })
+      });
+      const msg = await res.json();
+      if (msg._id) setMessages(prev => [...prev, msg]);
+      setMessageText('');
+    } catch {}
+    setSending(false);
   };
 
-  const handleSendMessage = () => {
-    if (messageText.trim()) {
-      setMessageText('');
-    }
+  const formatTime = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
   };
+
+  const currentRoom = rooms.find(r => r.room_id === selectedRoom);
 
   return (
     <div className="messages-content-whatsapp">
       <div className="chat-sidebar">
-        <div className="chat-sidebar-header">
-          <h2>Messages</h2>
-        </div>
+        <div className="chat-sidebar-header"><h2>Messages</h2></div>
         <div className="chats-list">
-          {chats.map(chat => (
-            <div key={chat.id} className={`chat-item ${selectedChat === chat.id ? 'active' : ''}`} onClick={() => setSelectedChat(chat.id)}>
-              <div className="chat-avatar">{chat.avatar}</div>
+          {rooms.length === 0 && <p style={{color:'rgba(255,255,255,0.3)',padding:'20px',fontSize:'13px'}}>No rooms available</p>}
+          {rooms.map(room => (
+            <div key={room.room_id} className={`chat-item ${selectedRoom === room.room_id ? 'active' : ''}`} onClick={() => setSelectedRoom(room.room_id)}>
+              <div className="chat-avatar">{room.name[0].toUpperCase()}</div>
               <div className="chat-info">
                 <div className="chat-header">
-                  <h3>{chat.name}</h3>
-                  <span className="chat-time">{chat.time}</span>
+                  <h3>{room.name}</h3>
+                  <span className="chat-time">{formatTime(room.lastTime)}</span>
                 </div>
-                <p className="chat-last-msg">{chat.lastMsg}</p>
+                <p className="chat-last-msg">{room.lastMsg || 'No messages yet'}</p>
               </div>
-              {chat.unread > 0 && <div className="chat-unread-badge">{chat.unread}</div>}
             </div>
           ))}
         </div>
       </div>
-      
+
       <div className="chat-main">
-        {selectedChat ? (
+        {selectedRoom ? (
           <>
             <div className="chat-main-header">
-              <div className="chat-avatar">{chats.find(c => c.id === selectedChat)?.avatar}</div>
+              <div className="chat-avatar">{currentRoom?.name[0].toUpperCase()}</div>
               <div>
-                <h3>{chats.find(c => c.id === selectedChat)?.name}</h3>
-                <p>{chats.find(c => c.id === selectedChat)?.type === 'group' ? 'Group' : 'Personal'}</p>
+                <h3>{currentRoom?.name}</h3>
+                <p>{currentRoom?.type === 'group' ? 'Group Chat' : 'Personal'}</p>
               </div>
             </div>
             <div className="chat-messages">
-              {(chatMessages[selectedChat] || []).map(msg => (
-                <div key={msg.id} className={`chat-message ${msg.isMine ? 'mine' : ''}`}>
-                  {!msg.isMine && <span className="message-sender">{msg.sender}</span>}
-                  <div className="message-bubble">
-                    <p>{msg.text}</p>
-                    <span className="message-time">{msg.time}</span>
+              {messages.map((msg, idx) => {
+                const isMine = msg.sender_id === student.student_id || msg.sender_name === senderName;
+                return (
+                  <div key={msg._id || idx} className={`chat-message ${isMine ? 'mine' : ''}`}>
+                    {!isMine && <span className="message-sender">{msg.sender_name}</span>}
+                    <div className="message-bubble">
+                      <p>{msg.text}</p>
+                      <span className="message-time">{formatTime(msg.created_at)}</span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
+              <div ref={lastMsgRef} />
             </div>
             <div className="chat-input">
-              <input type="text" placeholder="Type a message..." value={messageText} onChange={(e) => setMessageText(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()} />
-              <button onClick={handleSendMessage}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-                  <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                </svg>
+              <input type="text" placeholder="Type a message..." value={messageText}
+                onChange={e => setMessageText(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSend()} />
+              <button onClick={handleSend} disabled={sending}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
               </button>
             </div>
           </>
@@ -1963,6 +2125,99 @@ function MeritListContent() {
   );
 }
 
+function JobsContent() {
+  const [appliedJobs, setAppliedJobs] = useState(() => {
+    const student = JSON.parse(localStorage.getItem('currentStudent') || '{}');
+    const saved = localStorage.getItem(`appliedJobs_${student.student_id}`);
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [jobs, setJobs] = useState([]);
+
+  useEffect(() => {
+    getJobs().then(data => { if (Array.isArray(data)) setJobs(data); }).catch(() => {});
+  }, []);
+
+  const handleViewDetails = (job) => { setSelectedJob(job); setShowDetailModal(true); };
+
+  const handleApply = async (jobId) => {
+    const student = JSON.parse(localStorage.getItem('currentStudent') || '{}');
+    if (!student.student_id) return;
+    try { await applyForJob(jobId, student.student_id); } catch {}
+    const updated = [...appliedJobs, jobId];
+    setAppliedJobs(updated);
+    localStorage.setItem(`appliedJobs_${student.student_id}`, JSON.stringify(updated));
+  };
+
+  return (
+    <div className="internships-content">
+      <div className="internships-header">
+        <div>
+          <h2>Job Placements</h2>
+          <p>{jobs.length} placement{jobs.length !== 1 ? 's' : ''} available</p>
+        </div>
+      </div>
+      <div className="opportunities-grid">
+        {jobs.length === 0 && <p style={{color:'rgba(255,255,255,0.4)',padding:'40px',textAlign:'center'}}>No job placements posted yet.</p>}
+        {jobs.map(job => {
+          const jid = job._id || job.id;
+          return (
+            <div key={jid} className="opportunity-card">
+              <div className="opp-header">
+                <div className="opp-logo" style={{backgroundColor: job.color}}>{job.logo}</div>
+                <span className="opp-badge placement">Placement</span>
+              </div>
+              <h3>{job.role}</h3>
+              <p className="opp-company">{job.company}</p>
+              <div className="opp-details">
+                <div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> {job.location}</div>
+                <div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> {job.salary}</div>
+                <div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Deadline: {job.deadline}</div>
+                {job.min_cgpa > 0 && <div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg> Min CGPA: {job.min_cgpa}</div>}
+                {job.eligible_branches && <div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg> {job.eligible_branches}</div>}
+              </div>
+              <button className="view-details-btn" onClick={() => handleViewDetails(job)}>
+                {appliedJobs.includes(jid) ? (<><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg> Applied</>) : 'View Details'}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      {showDetailModal && selectedJob && (
+        <div className="modal-overlay" onClick={() => setShowDetailModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header"><h2>Job Details</h2><button className="close-btn" onClick={() => setShowDetailModal(false)}>×</button></div>
+            <div className="modal-body">
+              <div className="job-detail-header">
+                <div className="opp-logo" style={{backgroundColor:selectedJob.color,width:'64px',height:'64px',fontSize:'28px'}}>{selectedJob.logo}</div>
+                <div>
+                  <h3>{selectedJob.role}</h3>
+                  <p style={{color:'rgba(255,255,255,0.7)',marginBottom:'8px'}}>{selectedJob.company}</p>
+                  <span className="opp-badge placement">Placement</span>
+                </div>
+              </div>
+              {selectedJob.description && <p style={{fontSize:'14px',color:'rgba(255,255,255,0.7)',lineHeight:'1.6',margin:'16px 0',padding:'14px',background:'rgba(255,255,255,0.03)',borderRadius:'10px',border:'1px solid rgba(255,255,255,0.08)'}}>{selectedJob.description}</p>}
+              <div className="job-detail-info">
+                <div className="info-row"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><span>{selectedJob.location}</span></div>
+                <div className="info-row"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span>{selectedJob.salary}</span></div>
+                <div className="info-row"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>Deadline: {selectedJob.deadline}</span></div>
+                {selectedJob.min_cgpa > 0 && <div className="info-row"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg><span>Minimum CGPA: {selectedJob.min_cgpa}</span></div>}
+                {selectedJob.eligible_branches && <div className="info-row"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg><span>Eligible: {selectedJob.eligible_branches}</span></div>}
+              </div>
+              {(() => {
+                const jid = selectedJob._id || selectedJob.id;
+                const applied = appliedJobs.includes(jid);
+                return <button className="save-changes-btn" style={{...(applied && {background:'#10b981'})}} onClick={() => handleApply(jid)} disabled={applied}>{applied ? (<><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg> Applied Successfully</>) : 'Apply Now'}</button>;
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function InternshipsContent() {
   const [filter, setFilter] = useState('All');
   const [appliedJobs, setAppliedJobs] = useState(() => {
@@ -1972,56 +2227,48 @@ function InternshipsContent() {
   });
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
-  const [jobs, setJobs] = useState([]);
   const [internships, setInternships] = useState([]);
 
   useEffect(() => {
-    getJobs().then(data => { if (Array.isArray(data)) setJobs(data); }).catch(() => {});
     getInternships().then(data => { if (Array.isArray(data)) setInternships(data); }).catch(() => {});
   }, []);
-  
-  const opportunities = [...internships, ...jobs];
-  const filtered = filter === 'All' ? opportunities : opportunities.filter(o => o.type === filter);
+
+  const opportunities = internships;
+  const filtered = opportunities;
 
   const handleViewDetails = (job) => {
     setSelectedJob(job);
     setShowDetailModal(true);
   };
 
-  const handleApply = (jobId) => {
+  const handleApply = async (jobId) => {
     const student = JSON.parse(localStorage.getItem('currentStudent') || '{}');
+    if (!student.student_id) return;
+    try {
+      await applyForJob(jobId, student.student_id);
+    } catch (err) {
+      if (err?.message?.includes('Already applied')) { /* already applied, continue */ }
+      else { console.error('Apply failed:', err); }
+    }
     const updated = [...appliedJobs, jobId];
     setAppliedJobs(updated);
     localStorage.setItem(`appliedJobs_${student.student_id}`, JSON.stringify(updated));
-    
-    const applications = JSON.parse(localStorage.getItem('applications') || '[]');
-    const score = 70 + Math.floor(Math.random() * 30);
-    applications.push({
-      id: `${student.student_id}_${jobId}`,
-      student_id: student.student_id,
-      jobId: jobId,
-      score: score,
-      appliedAt: new Date().toISOString()
-    });
-    localStorage.setItem('applications', JSON.stringify(applications));
   };
 
   return (
     <div className="internships-content">
       <div className="internships-header">
         <div>
-          <h2>Internships & Placements</h2>
-          <p>{opportunities.length} opportunities available</p>
-        </div>
-        <div className="filter-buttons">
-          <button className={filter === 'All' ? 'active' : ''} onClick={() => setFilter('All')}>All</button>
-          <button className={filter === 'Internship' ? 'active' : ''} onClick={() => setFilter('Internship')}>Internships</button>
-          <button className={filter === 'Placement' ? 'active' : ''} onClick={() => setFilter('Placement')}>Placements</button>
+          <h2>Internships</h2>
+          <p>{internships.length} internship{internships.length !== 1 ? 's' : ''} available</p>
         </div>
       </div>
       <div className="opportunities-grid">
-        {filtered.map(opp => (
-          <div key={opp.id} className="opportunity-card">
+        {internships.length === 0 && <p style={{color:'rgba(255,255,255,0.4)',padding:'40px',textAlign:'center'}}>No internships posted yet.</p>}
+        {filtered.map(opp => {
+          const oppId = opp._id || opp.id;
+          return (
+          <div key={oppId} className="opportunity-card">
             <div className="opp-header">
               <div className="opp-logo" style={{backgroundColor: opp.color}}>{opp.logo}</div>
               <span className={`opp-badge ${opp.type.toLowerCase()}`}>{opp.type}</span>
@@ -2032,19 +2279,17 @@ function InternshipsContent() {
               <div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> {opp.location}</div>
               <div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> {opp.salary}</div>
               <div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Deadline: {opp.deadline}</div>
+              {opp.min_cgpa > 0 && <div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg> Min CGPA: {opp.min_cgpa}</div>}
+              {opp.eligible_branches && <div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg> {opp.eligible_branches}</div>}
             </div>
             <button className="view-details-btn" onClick={() => handleViewDetails(opp)}>
-              {appliedJobs.includes(opp.id) ? (
-                <>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M20 6L9 17l-5-5"/>
-                  </svg>
-                  Applied
-                </>
+              {appliedJobs.includes(oppId) ? (
+                <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg> Applied</>
               ) : 'View Details'}
             </button>
           </div>
-        ))}
+          );
+        })}
       </div>
       
       {showDetailModal && selectedJob && (
@@ -2063,30 +2308,27 @@ function InternshipsContent() {
                   <span className={`opp-badge ${selectedJob.type.toLowerCase()}`}>{selectedJob.type}</span>
                 </div>
               </div>
+              {selectedJob.description && (
+                <p style={{fontSize:'14px',color:'rgba(255,255,255,0.7)',lineHeight:'1.6',margin:'16px 0',padding:'14px',background:'rgba(255,255,255,0.03)',borderRadius:'10px',border:'1px solid rgba(255,255,255,0.08)'}}>
+                  {selectedJob.description}
+                </p>
+              )}
               <div className="job-detail-info">
-                <div className="info-row">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                  <span>{selectedJob.location}</span>
-                </div>
-                <div className="info-row">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                  <span>{selectedJob.salary}</span>
-                </div>
-                <div className="info-row">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  <span>Deadline: {selectedJob.deadline}</span>
-                </div>
+                <div className="info-row"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><span>{selectedJob.location}</span></div>
+                <div className="info-row"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span>{selectedJob.salary}</span></div>
+                <div className="info-row"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>Deadline: {selectedJob.deadline}</span></div>
+                {selectedJob.min_cgpa > 0 && <div className="info-row"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg><span>Minimum CGPA: {selectedJob.min_cgpa}</span></div>}
+                {selectedJob.eligible_branches && <div className="info-row"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg><span>Eligible: {selectedJob.eligible_branches}</span></div>}
               </div>
-              <button className="save-changes-btn" style={{...(appliedJobs.includes(selectedJob.id) && {background: '#10b981'})}} onClick={() => handleApply(selectedJob.id)} disabled={appliedJobs.includes(selectedJob.id)}>
-                {appliedJobs.includes(selectedJob.id) ? (
-                  <>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M20 6L9 17l-5-5"/>
-                    </svg>
-                    Applied Successfully
-                  </>
-                ) : 'Apply Now'}
-              </button>
+              {(() => {
+                const jid = selectedJob._id || selectedJob.id;
+                const applied = appliedJobs.includes(jid);
+                return (
+                  <button className="save-changes-btn" style={{...(applied && {background:'#10b981'})}} onClick={() => handleApply(jid)} disabled={applied}>
+                    {applied ? (<><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg> Applied Successfully</>) : 'Apply Now'}
+                  </button>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -2166,7 +2408,7 @@ function DashboardContent() {
   }, []);
 
   const activities = [
-    ...jobs.map(j => ({ text: `${j.company} job posted`, time: 'New', color: 'blue', link: 'internships' })),
+    ...jobs.map(j => ({ text: `${j.company} job posted`, time: 'New', color: 'blue', link: 'jobs' })),
     ...events.map(e => ({ text: `${e.title}`, time: `${e.daysLeft} days left`, color: 'green', link: 'events' })),
     ...clubs.map(c => ({ text: `${c.name} - ${c.members} members`, time: 'Active', color: 'yellow', link: 'clubs' }))
   ].slice(0, 4);
@@ -2187,7 +2429,7 @@ function DashboardContent() {
       </div>
 
       <div className="stats-grid">
-        <div className="stat-card blue" onClick={() => window.location.hash = 'internships'}>
+        <div className="stat-card blue" onClick={() => window.location.hash = 'jobs'}>
           <div className="stat-icon">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
@@ -2270,6 +2512,42 @@ function DashboardContent() {
                 Upload marksheet to see your SGPA
               </p>
             )}
+            {/* SGPA Trend Chart */}
+            {(() => {
+              const profiles = JSON.parse(localStorage.getItem('studentProfiles') || '{}');
+              const sgpaList = (profiles[studentId]?.sgpaList || []).filter(v => v != null && v > 0);
+              if (sgpaList.length < 2) return null;
+              const W = 260, H = 80, pad = 10;
+              const maxV = Math.max(...sgpaList, 10);
+              const pts = sgpaList.map((v, i) => [
+                pad + (i / (sgpaList.length - 1)) * (W - pad * 2),
+                H - pad - ((v / maxV) * (H - pad * 2))
+              ]);
+              const polyline = pts.map(p => p.join(',')).join(' ');
+              const area = `${pts[0][0]},${H - pad} ` + polyline + ` ${pts[pts.length-1][0]},${H - pad}`;
+              return (
+                <div style={{marginTop:'14px'}}>
+                  <p style={{fontSize:'11px',color:'rgba(255,255,255,0.35)',marginBottom:'6px'}}>SGPA Trend</p>
+                  <svg width={W} height={H} style={{overflow:'visible'}}>
+                    <defs>
+                      <linearGradient id="sgpaGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3"/>
+                        <stop offset="100%" stopColor="#3b82f6" stopOpacity="0"/>
+                      </linearGradient>
+                    </defs>
+                    <polygon points={area} fill="url(#sgpaGrad)"/>
+                    <polyline points={polyline} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>
+                    {pts.map((p, i) => (
+                      <g key={i}>
+                        <circle cx={p[0]} cy={p[1]} r="3" fill="#3b82f6"/>
+                        <text x={p[0]} y={p[1] - 7} textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.6)">{sgpaList[i].toFixed(1)}</text>
+                        <text x={p[0]} y={H - 1} textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.3)">S{i+1}</text>
+                      </g>
+                    ))}
+                  </svg>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>

@@ -1,17 +1,15 @@
 const mongoose = require('mongoose');
 
 const recruiterProfileSchema = new mongoose.Schema({
-  recruiter_id: { type: String, required: true, unique: true },
-  email: String,
-  company: String,
-  phone: String,
-  website: String,
-  industry: String,
-  role: String,
-  logo: { type: String, default: '' },
+  company_id:  { type: String, required: true, unique: true },
+  company:     String,
+  email:       String,   // primary contact email
+  phone:       String,
+  website:     String,
+  industry:    String,
   description: { type: String, default: '' },
-  posted_jobs: [{ type: mongoose.Schema.Types.Mixed }],
-  updated_at: { type: Date, default: Date.now }
+  logo:        { type: String, default: '' },
+  updated_at:  { type: Date, default: Date.now }
 });
 
 module.exports = mongoose.model('RecruiterProfile', recruiterProfileSchema);

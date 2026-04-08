@@ -1,121 +1,114 @@
-import '../Student/StudentSignup.css?v=3';
-import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import API_BASE from '../../api/config';
+import { useNavigate, Link } from 'react-router-dom';
+import '../auth.css';
+
+const API = import.meta.env.VITE_API_BASE || 'http://localhost:5000/api';
 
 const DEPARTMENTS = [
-  'Computer Science & Engineering',
-  'Information Technology',
-  'Electronics & Communication',
-  'Mechanical Engineering',
-  'Civil Engineering',
-  'Electrical Engineering',
-  'Chemical Engineering',
-  'Other'
+  'Computer Science & Engineering', 'Information Technology',
+  'Electronics & Communication', 'Mechanical Engineering',
+  'Civil Engineering', 'Electrical Engineering', 'Chemical Engineering', 'Other'
 ];
 
-function TeacherSignup() {
+export default function TeacherSignup() {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    name: '', email: '', password: '', confirmPassword: '',
-    teacher_id: '', department: ''
-  });
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '', teacher_id: '', phone: '', department: '', designation: 'Assistant Professor' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const set = (field, val) => setFormData(p => ({ ...p, [field]: val }));
-
-  const validate = () => {
-    if (!formData.name.trim()) return 'Full name is required';
-    if (!formData.teacher_id.trim()) return 'Teacher ID is required';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return 'Invalid email format';
-    if (!formData.department) return 'Department is required';
-    if (formData.password.length < 6) return 'Password must be at least 6 characters';
-    if (formData.password !== formData.confirmPassword) return 'Passwords do not match';
-    return null;
-  };
+  const set = (f, v) => setForm(p => ({ ...p, [f]: v }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const err = validate();
-    if (err) { setError(err); return; }
     setError('');
+    if (!form.name || !form.email || !form.password || !form.teacher_id || !form.department) { setError('Please fill all required fields'); return; }
+    if (form.password !== form.confirm) { setError('Passwords do not match'); return; }
+    if (form.password.length < 6) { setError('Password must be at least 6 characters'); return; }
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/teachers/signup`, {
+      const res = await fetch(`${API}/teachers/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          teacher_id: formData.teacher_id,
-          email: formData.email,
-          password: formData.password,
-          name: formData.name,
-          department: formData.department
-        })
+        body: JSON.stringify({ name: form.name, email: form.email, password: form.password, teacher_id: form.teacher_id, phone: form.phone, department: form.department, designation: form.designation })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Signup failed');
-      localStorage.setItem('token', data.token);
+      if (!res.ok) { setError(data.error || 'Signup failed'); return; }
       localStorage.setItem('currentTeacher', JSON.stringify(data.teacher));
+      localStorage.setItem('token', data.token);
       navigate('/teacher/dashboard');
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    } catch { setError('Server error. Please try again.'); }
+    finally { setLoading(false); }
   };
 
   return (
-    <div className="signup-page">
-      <div className="signup-card" style={{ maxWidth: '480px' }}>
-        <button className="back-btn" onClick={() => navigate('/login')}>←</button>
-
-        <div className="signup-header">
-          <h1>Teacher Sign Up</h1>
+    <div className="auth-container">
+      <div className="auth-card">
+        <div className="auth-header">
+          <div className="auth-logo">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L1 9l11 6 9-4.91V17h2V9M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg>
+          </div>
+          <h1>Teacher Registration</h1>
           <p>Create your Smart Campus teacher account</p>
         </div>
 
-        {error && <div style={{ color: '#ef4444', marginBottom: '12px', textAlign: 'center', fontSize: '14px' }}>{error}</div>}
+        <form onSubmit={handleSubmit} className="auth-form">
+          {error && <div className="auth-error">{error}</div>}
 
-        <form className="signup-form" onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>Full Name</label>
-            <input type="text" placeholder="Dr. Rajesh Kumar" value={formData.name} onChange={e => set('name', e.target.value)} required />
+          <div className="form-row">
+            <div className="form-group">
+              <label>Full Name *</label>
+              <input type="text" value={form.name} onChange={e => set('name', e.target.value)} placeholder="Dr. Rajesh Kumar" required />
+            </div>
+            <div className="form-group">
+              <label>Teacher ID *</label>
+              <input type="text" value={form.teacher_id} onChange={e => set('teacher_id', e.target.value)} placeholder="TCH001" required />
+            </div>
           </div>
+
           <div className="form-group">
-            <label>Teacher ID</label>
-            <input type="text" placeholder="e.g. TCH2024001" value={formData.teacher_id} onChange={e => set('teacher_id', e.target.value)} required />
+            <label>Email *</label>
+            <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="teacher@college.edu" required />
           </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>Department *</label>
+              <select value={form.department} onChange={e => set('department', e.target.value)} required>
+                <option value="">Select Department</option>
+                {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Designation</label>
+              <select value={form.designation} onChange={e => set('designation', e.target.value)}>
+                {['Professor','Associate Professor','Assistant Professor','Lecturer','HOD','Dean'].map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+          </div>
+
           <div className="form-group">
-            <label>Email Address</label>
-            <input type="email" placeholder="teacher@kdkce.edu.in" value={formData.email} onChange={e => set('email', e.target.value)} required />
+            <label>Phone</label>
+            <input type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="10-digit number" />
           </div>
-          <div className="form-group">
-            <label>Department</label>
-            <select value={formData.department} onChange={e => set('department', e.target.value)} required>
-              <option value="">Select Department</option>
-              {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>Password *</label>
+              <input type="password" value={form.password} onChange={e => set('password', e.target.value)} placeholder="Min 6 characters" required />
+            </div>
+            <div className="form-group">
+              <label>Confirm Password *</label>
+              <input type="password" value={form.confirm} onChange={e => set('confirm', e.target.value)} placeholder="Repeat password" required />
+            </div>
           </div>
-          <div className="form-group">
-            <label>Password</label>
-            <input type="password" placeholder="Min. 6 characters" value={formData.password} onChange={e => set('password', e.target.value)} required />
-          </div>
-          <div className="form-group">
-            <label>Confirm Password</label>
-            <input type="password" placeholder="Re-enter password" value={formData.confirmPassword} onChange={e => set('confirmPassword', e.target.value)} required />
-          </div>
-          <button type="submit" className="signup-btn" disabled={loading}>
+
+          <button type="submit" className="auth-btn" disabled={loading}>
             {loading ? 'Creating Account...' : 'Create Account'}
           </button>
         </form>
 
-        <div className="student-signin-link">
-          Already have an account? <Link to="/login">Sign In</Link>
-        </div>
+        <p className="auth-footer">Already have an account? <Link to="/login">Sign In</Link></p>
       </div>
     </div>
   );
 }
-
-export default TeacherSignup;
