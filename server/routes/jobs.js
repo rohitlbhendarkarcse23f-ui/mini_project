@@ -2,6 +2,7 @@ const express = require('express');
 const Job = require('../models/Job');
 const Application = require('../models/Application');
 const { authMiddleware } = require('./middleware');
+const { notifyNewJob, notifyStatusChange } = require('./emailService');
 
 const router = express.Router();
 
@@ -37,6 +38,12 @@ router.post('/', authMiddleware, async (req, res) => {
       company_id
     }).save();
     res.status(201).json(job);
+    // Notify all students asynchronously (non-blocking)
+    const Student = require('../models/Student');
+    Student.find({}, 'email').then(students => {
+      const emails = students.map(s => s.email).filter(Boolean);
+      notifyNewJob(job, emails).catch(() => {});
+    }).catch(() => {});
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -113,9 +120,16 @@ router.patch('/:id/status', authMiddleware, async (req, res) => {
       req.params.id,
       { status },
       { new: true }
-    ).populate('job_id', 'role type');
+    ).populate('job_id', 'role company type');
     if (!app) return res.status(404).json({ error: 'Application not found' });
     res.json(app);
+    // Notify student asynchronously
+    const Student = require('../models/Student');
+    Student.findOne({ student_id: app.student_id }, 'email name').then(student => {
+      if (student?.email) {
+        notifyStatusChange(student.email, student.name, app.job_id, status).catch(() => {});
+      }
+    }).catch(() => {});
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

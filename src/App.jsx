@@ -13,6 +13,7 @@ import RecruiterLogin from './components/Recruiter/RecruiterLogin';
 import RecruiterDashboard from './components/Recruiter/RecruiterDashboard';
 import TeacherDashboard from './components/Teacher/TeacherDashboard';
 import TeacherSignup from './components/Teacher/TeacherSignup';
+import StaticPage from './components/StaticPage';
 import NotFound from './components/NotFound';
 
 function ProtectedRoute({ element, requiredKey }) {
@@ -35,6 +36,13 @@ const PAGE_TITLES = {
   '/recruiter/signup':    'Recruiter Registration | Campus Connect',
   '/recruiter/login':     'Recruiter Sign In | Campus Connect',
   '/recruiter/dashboard': 'Recruiter Dashboard | Campus Connect',
+  '/legal/privacy-policy': 'Privacy Policy | Campus Connect',
+  '/legal/terms-of-service': 'Terms of Service | Campus Connect',
+  '/legal/cookie-policy': 'Cookie Policy | Campus Connect',
+  '/legal/security': 'Security | Campus Connect',
+  '/support/help-center': 'Help Center | Campus Connect',
+  '/support/status': 'System Status | Campus Connect',
+  '/support/documentation': 'Documentation | Campus Connect',
 };
 
 function App() {
@@ -58,6 +66,13 @@ function App() {
       <Route path="/recruiter/signup" element={<RecruiterSignup />} />
       <Route path="/recruiter/login" element={<RecruiterLogin />} />
       <Route path="/recruiter/dashboard" element={<ProtectedRecruiterRoute element={<RecruiterDashboard />} />} />
+      <Route path="/legal/privacy-policy" element={<StaticPage docId="privacy-policy" />} />
+      <Route path="/legal/terms-of-service" element={<StaticPage docId="terms-of-service" />} />
+      <Route path="/legal/cookie-policy" element={<StaticPage docId="cookie-policy" />} />
+      <Route path="/legal/security" element={<StaticPage docId="security" />} />
+      <Route path="/support/help-center" element={<StaticPage docId="help-center" />} />
+      <Route path="/support/status" element={<StaticPage docId="status" />} />
+      <Route path="/support/documentation" element={<StaticPage docId="documentation" />} />
       <Route path="*" element={<NotFound />} />
       </Routes>
     </>

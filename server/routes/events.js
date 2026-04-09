@@ -1,6 +1,7 @@
 const express = require('express');
 const Event = require('../models/Event');
 const { authMiddleware } = require('./middleware');
+const { notifyNewEvent } = require('./emailService');
 
 const router = express.Router();
 
@@ -18,6 +19,12 @@ router.post('/', authMiddleware, async (req, res) => {
     const event_id = Date.now();
     const event = await new Event({ ...req.body, event_id, created_by: req.user.id }).save();
     res.status(201).json(event);
+    // Notify all students asynchronously
+    const Student = require('../models/Student');
+    Student.find({}, 'email').then(students => {
+      const emails = students.map(s => s.email).filter(Boolean);
+      notifyNewEvent(event, emails).catch(() => {});
+    }).catch(() => {});
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

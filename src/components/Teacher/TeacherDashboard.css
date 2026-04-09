@@ -186,3 +186,160 @@
 .teacher-stat-card.orange .stat-icon { 
   color: #a78bfa; 
 }
+
+/* ══════════════════════════════════════════════════════════════
+   RESPONSIVE — Teacher Dashboard
+   ══════════════════════════════════════════════════════════════ */
+
+@media (max-width: 1024px) {
+  .opportunities-grid,
+  .events-grid,
+  .clubs-grid {
+    grid-template-columns: 1fr;
+  }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .bottom-section { grid-template-columns: 1fr; }
+  .top-performers { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .teacher-sidebar {
+    left: -280px !important;
+    transition: left 0.3s ease;
+    z-index: 200;
+  }
+  .teacher-sidebar.open { left: 0 !important; }
+
+  .main-content { margin-left: 0 !important; }
+  .top-header { padding: 16px 20px 16px 72px; }
+  .content-wrapper { padding: 20px 16px; }
+  .section-title { font-size: 18px; }
+
+  .teacher-greeting-card {
+    padding: 24px 20px;
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+  .teacher-greeting-card h1 { font-size: 26px; }
+  .badge-icon { display: none; }
+
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .stat-card { padding: 16px; }
+  .stat-card h2 { font-size: 32px; }
+
+  .bottom-section { grid-template-columns: 1fr; gap: 16px; }
+
+  .merit-table-container { overflow-x: auto; }
+  .merit-filters { flex-direction: column; }
+  .top-performers { grid-template-columns: 1fr; gap: 12px; }
+
+  .modal-content { width: 95% !important; max-width: 95% !important; }
+
+  .internships-header { flex-direction: column; gap: 12px; align-items: flex-start; }
+  .filter-buttons { flex-wrap: wrap; }
+
+  .clubs-stats { grid-template-columns: repeat(2, 1fr); }
+  .clubs-grid, .events-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .event-filters, .club-filters { gap: 6px; }
+  .event-filters button, .club-filters button { padding: 6px 12px; font-size: 12px; }
+}
+
+/* ── auth-container used by TeacherSignup ── */
+.auth-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #0d1220, #030304);
+  padding: 32px 16px;
+  font-family: 'Inter', sans-serif;
+  color: white;
+}
+
+.auth-container .auth-card {
+  width: 100%;
+  max-width: 560px;
+  background: rgba(15,23,42,0.9);
+  border: 1px solid rgba(139,92,246,0.2);
+  border-radius: 24px;
+  padding: 40px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+}
+
+.auth-container .auth-header { text-align: center; margin-bottom: 28px; }
+.auth-container .auth-header h1 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+.auth-container .auth-header p  { font-size: 14px; color: rgba(255,255,255,0.5); }
+
+.auth-container .auth-logo {
+  width: 52px; height: 52px;
+  background: linear-gradient(135deg,#8b5cf6,#7c3aed);
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px;
+  color: white;
+}
+
+.auth-container .auth-form { display: flex; flex-direction: column; gap: 16px; }
+
+.auth-container .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+.auth-container .form-group { display: flex; flex-direction: column; gap: 6px; }
+
+.auth-container .form-group label {
+  font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.75);
+}
+
+.auth-container .form-group input,
+.auth-container .form-group select {
+  width: 100%; height: 46px; padding: 0 14px;
+  background: rgba(255,255,255,0.05);
+  border: 1.5px solid rgba(139,92,246,0.2);
+  border-radius: 10px; color: white;
+  font-size: 14px; font-family: 'Inter', sans-serif;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.auth-container .form-group input:focus,
+.auth-container .form-group select:focus {
+  outline: none;
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 3px rgba(139,92,246,0.15);
+}
+
+.auth-container .form-group input::placeholder { color: rgba(255,255,255,0.3); }
+.auth-container .form-group select option { background: #111520; }
+
+.auth-container .auth-error {
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 10px; padding: 10px 14px;
+  font-size: 13px; color: #fca5a5; text-align: center;
+}
+
+.auth-container .auth-btn {
+  width: 100%; height: 48px; border: none;
+  border-radius: 12px; color: white;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  background: linear-gradient(135deg,#8b5cf6,#7c3aed);
+  box-shadow: 0 4px 16px rgba(139,92,246,0.3);
+  transition: all 0.2s; font-family: 'Inter', sans-serif;
+}
+.auth-container .auth-btn:hover { background: linear-gradient(135deg,#7c3aed,#6d28d9); transform: translateY(-1px); }
+.auth-container .auth-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+.auth-container .auth-footer {
+  text-align: center; font-size: 13px;
+  color: rgba(255,255,255,0.45); margin-top: 20px;
+}
+.auth-container .auth-footer a { color: #a78bfa; font-weight: 600; }
+.auth-container .auth-footer a:hover { text-decoration: underline; }
+
+@media (max-width: 480px) {
+  .auth-container .auth-card { padding: 28px 20px; }
+  .auth-container .form-row { grid-template-columns: 1fr; }
+}

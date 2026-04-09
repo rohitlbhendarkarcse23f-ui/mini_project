@@ -1,24 +1,11 @@
-import API_BASE from './config';
+import api from './axiosInstance';
 
 export const signUp = async (student_id, email, password, extraData = {}) => {
-  const res = await fetch(`${API_BASE}/auth/signup`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ student_id, email, password, ...extraData })
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Signup failed');
-  return data;
+  return await api.post('/auth/signup', { student_id, email, password, ...extraData });
 };
 
 export const signIn = async (identifier, password) => {
-  const res = await fetch(`${API_BASE}/auth/signin`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ identifier, password })
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Invalid credentials');
+  const data = await api.post('/auth/signin', { identifier, password });
   localStorage.setItem('token', data.token);
   return data;
 };

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { useState } from 'react';
 import './MarksheetUpload.css';
 import { uploadFile, saveMarksheets } from '../../api/profiles';
