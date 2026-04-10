@@ -14,6 +14,7 @@ export const TIE_BREAK_STRATEGIES = {
   FEWEST_FAILS:     'fewest_fails',     // Fewest F grades
   WEIGHTED_CREDITS: 'weighted_credits', // Credits-weighted SGPA (true academic load)
   CONSISTENCY:      'consistency',      // Lowest SGPA variance (most consistent)
+  HOLISTIC:         'holistic',         // Composite score of CGPA, Trend, Fails, Consistency
 };
 
 export const STRATEGY_LABELS = {
@@ -23,6 +24,7 @@ export const STRATEGY_LABELS = {
   [TIE_BREAK_STRATEGIES.FEWEST_FAILS]:     'Fewest Failures',
   [TIE_BREAK_STRATEGIES.WEIGHTED_CREDITS]: 'Credits-Weighted SGPA',
   [TIE_BREAK_STRATEGIES.CONSISTENCY]:      'Academic Consistency',
+  [TIE_BREAK_STRATEGIES.HOLISTIC]:         'Holistic Composite Score',
 };
 
 export const STRATEGY_DESCRIPTIONS = {
@@ -32,6 +34,7 @@ export const STRATEGY_DESCRIPTIONS = {
   [TIE_BREAK_STRATEGIES.FEWEST_FAILS]:     'Student with fewer failed subjects wins',
   [TIE_BREAK_STRATEGIES.WEIGHTED_CREDITS]: 'SGPA weighted by actual credit load per semester wins',
   [TIE_BREAK_STRATEGIES.CONSISTENCY]:      'Student with the most consistent SGPA (lowest variance) wins',
+  [TIE_BREAK_STRATEGIES.HOLISTIC]:         'Student with the best overall normalized score across CGPA, Trend, Fails, and Consistency wins',
 };
 
 const GRADE_POINTS = { 'O': 10, 'A+': 9, 'A': 8, 'B+': 7, 'B': 6, 'C': 5, 'D': 4, 'F': 0 };
@@ -48,7 +51,29 @@ async function calculateMicroPrecision(studentId, sgpaList) {
 }
 
 // ── Core metric calculations ──────────────────────────────────────
-export function calculateCGPA(sgpaList) {
+export function calculateCGPA(sgpaList, semesterData) {
+  if (!semesterData || Object.keys(semesterData).length === 0) {
+    const valid = (sgpaList || []).filter(v => v != null && v > 0);
+    return valid.length > 0 ? valid.reduce((a, b) => a + b, 0) / valid.length : 0;
+  }
+  
+  let totalWeightedPoints = 0;
+  let totalCredits = 0;
+  Object.entries(semesterData).forEach(([sem, subjects]) => {
+    const semIdx = parseInt(sem) - 1;
+    const sgpa = (sgpaList || [])[semIdx];
+    if (sgpa == null || sgpa <= 0) return;
+    const credits = (subjects || []).reduce((s, sub) => s + (Number(sub?.credits) || 0), 0);
+    if (credits > 0) {
+      totalWeightedPoints += sgpa * credits;
+      totalCredits += credits;
+    }
+  });
+  
+  if (totalCredits > 0) {
+    return totalWeightedPoints / totalCredits;
+  }
+  
   const valid = (sgpaList || []).filter(v => v != null && v > 0);
   return valid.length > 0 ? valid.reduce((a, b) => a + b, 0) / valid.length : 0;
 }
@@ -61,9 +86,18 @@ export function getCurrentSGPA(sgpaList) {
 export function calculateTrend(sgpaList) {
   const valid = (sgpaList || []).filter(v => v != null && v > 0);
   if (valid.length <= 1) return 0;
-  const current = valid[valid.length - 1];
-  const prevAvg = valid.slice(0, -1).reduce((a, b) => a + b, 0) / (valid.length - 1);
-  return current - prevAvg;
+  
+  const n = valid.length;
+  let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+  for (let i = 0; i < n; i++) {
+    const x = i + 1;
+    const y = valid[i];
+    sumX += x;
+    sumY += y;
+    sumXY += x * y;
+    sumXX += x * x;
+  }
+  return (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
 }
 
 function calculateTotalCredits(semesterData) {
@@ -117,6 +151,30 @@ function calculateConsistency(sgpaList) {
   return -variance; // negative so lower variance ranks higher
 }
 
+function calculateHolisticScore(cgpa, trend, fails, consistency) {
+  const normalizedCGPA = cgpa / 10.0;
+  const normalizedTrend = Math.max(0, Math.min(1, (trend + 2) / 4));
+  const normalizedConsistency = Math.max(0, Math.min(1, 1 + consistency / 2));
+  const normalizedFails = Math.max(0, Math.min(1, 1 - fails / 5));
+
+  return (normalizedCGPA * 0.55) + 
+         (normalizedTrend * 0.20) + 
+         (normalizedConsistency * 0.15) + 
+         (normalizedFails * 0.10);
+}
+
+function getSubjectGradePoint(semesterData, subjectName) {
+  if (!semesterData || !subjectName) return 0;
+  const q = subjectName.toLowerCase();
+  for (const subjects of Object.values(semesterData)) {
+    const match = subjects.find(s => s.name?.toLowerCase().includes(q) || s.code?.toLowerCase().includes(q));
+    if (match) {
+        return GRADE_POINTS[match.grade] ?? 0;
+    }
+  }
+  return 0;
+}
+
 // ── Per-student semester breakdown for UI ────────────────────────
 export function buildSemesterBreakdown(student) {
   const { sgpaList = [], semesterData = {}, marksheets = [] } = student;
@@ -134,7 +192,7 @@ export function buildSemesterBreakdown(student) {
 }
 
 // ── Main ranking engine ───────────────────────────────────────────
-async function calculateMeritMetrics(student, strategy, filterSemester, filterYear = null) {
+async function calculateMeritMetrics(student, strategy, filterSemester, filterYear = null, filterSubject = null) {
   const rawSgpa = student.sgpaList || [];
   // Year filter takes precedence: slice to year's semester range
   const scopedRaw = filterYear
@@ -144,14 +202,19 @@ async function calculateMeritMetrics(student, strategy, filterSemester, filterYe
     ? scopedRaw.slice(0, filterSemester).filter(v => v != null && v > 0)
     : scopedRaw.filter(v => v != null && v > 0);
 
-  const cgpa = calculateCGPA(sgpaList);
+  const cgpa = calculateCGPA(sgpaList, student.semesterData);
   const currentSGPA = filterSemester
     ? (scopedRaw[filterSemester - 1] || 0)
     : getCurrentSGPA(scopedRaw);
   const trend = calculateTrend(sgpaList);
+  const failsCount = countFails(student.semesterData, filterSemester);
+  const consistencyScore = calculateConsistency(sgpaList);
+  
   const microPrecision = sgpaList.length > 0
     ? await calculateMicroPrecision(student.id || student.student_id, sgpaList)
     : 0;
+
+  const subjectGrade = filterSubject ? getSubjectGradePoint(student.semesterData, filterSubject) : 0;
 
   let tieBreaker3 = 0;
   switch (strategy) {
@@ -162,13 +225,16 @@ async function calculateMeritMetrics(student, strategy, filterSemester, filterYe
       tieBreaker3 = getBestSubjectGrade(student.semesterData, filterSemester);
       break;
     case TIE_BREAK_STRATEGIES.FEWEST_FAILS:
-      tieBreaker3 = -countFails(student.semesterData, filterSemester);
+      tieBreaker3 = -failsCount;
       break;
     case TIE_BREAK_STRATEGIES.WEIGHTED_CREDITS:
       tieBreaker3 = calculateWeightedSGPA(rawSgpa, student.semesterData);
       break;
     case TIE_BREAK_STRATEGIES.CONSISTENCY:
-      tieBreaker3 = calculateConsistency(sgpaList);
+      tieBreaker3 = consistencyScore;
+      break;
+    case TIE_BREAK_STRATEGIES.HOLISTIC:
+      tieBreaker3 = calculateHolisticScore(cgpa, trend, failsCount, consistencyScore);
       break;
     case TIE_BREAK_STRATEGIES.TREND:
     default:
@@ -184,15 +250,19 @@ async function calculateMeritMetrics(student, strategy, filterSemester, filterYe
     trend,
     tieBreaker3,
     microPrecision,
+    subjectGrade,
     semesterBreakdown,
     totalCredits: calculateTotalCredits(student.semesterData),
     weightedSGPA: calculateWeightedSGPA(rawSgpa, student.semesterData),
-    consistency: calculateConsistency(sgpaList),
-    failCount: countFails(student.semesterData, filterSemester),
+    consistency: consistencyScore,
+    failCount: failsCount,
   };
 }
 
-function compareStudents(a, b) {
+function compareStudents(a, b, filterSubject) {
+  if (filterSubject) {
+    if (Math.abs(a.subjectGrade - b.subjectGrade) > 0.0001) return b.subjectGrade - a.subjectGrade;
+  }
   if (Math.abs(a.cgpa - b.cgpa) > 0.0001) return b.cgpa - a.cgpa;
   if (Math.abs(a.currentSGPA - b.currentSGPA) > 0.0001) return b.currentSGPA - a.currentSGPA;
   if (Math.abs(a.tieBreaker3 - b.tieBreaker3) > 0.0001) return b.tieBreaker3 - a.tieBreaker3;
@@ -214,7 +284,7 @@ export function getSgpaForYear(sgpaList, year) {
   return (sgpaList || []).slice(start - 1, end);
 }
 
-export async function sortStudentsByMerit(students, strategy = TIE_BREAK_STRATEGIES.TREND, filterSemester = null, filterYear = null) {
+export async function sortStudentsByMerit(students, strategy = TIE_BREAK_STRATEGIES.TREND, filterSemester = null, filterYear = null, filterSubject = null) {
   if (!students || students.length === 0) return [];
   // If year filter is set, derive effective semester from year range end
   const effectiveSemester = filterYear && !filterSemester
@@ -222,9 +292,9 @@ export async function sortStudentsByMerit(students, strategy = TIE_BREAK_STRATEG
     : filterSemester;
 
   const withMetrics = await Promise.all(
-    students.map(s => calculateMeritMetrics(s, strategy, effectiveSemester, filterYear))
+    students.map(s => calculateMeritMetrics(s, strategy, effectiveSemester, filterYear, filterSubject))
   );
-  return withMetrics.sort(compareStudents).map((s, i) => ({ ...s, rank: i + 1 }));
+  return withMetrics.sort((a, b) => compareStudents(a, b, filterSubject)).map((s, i) => ({ ...s, rank: i + 1 }));
 }
 
 export async function getStudentRank(targetStudent, allStudents, strategy, filterSemester) {

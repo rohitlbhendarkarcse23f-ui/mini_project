@@ -15,7 +15,7 @@ import EventsContent from './Dashboard/EventsContent';
 import InternshipsContent from './Dashboard/InternshipsContent';
 import DashboardContent from './Dashboard/DashboardContent';
 import ProfileContent from './Dashboard/ProfileContent';
-
+import { ErrorBoundary } from '../ErrorBoundary';
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -41,10 +41,19 @@ function TeacherDashboard() {
   }, [theme]);
 
   useEffect(() => {
-    const hash = window.location.hash.replace('#', '');
-    if (hash && ['internships', 'events', 'clubs', 'merit', 'marksheets'].includes(hash)) {
-      setActiveTab(hash);
-    }
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash && ['internships', 'events', 'clubs', 'merit', 'marksheets', 'dashboard', 'profile'].includes(hash)) {
+        setActiveTab(hash);
+      }
+    };
+    
+    // Initial check
+    handleHashChange();
+    
+    // Listen for future hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
   const getPageTitle = () => {
@@ -66,8 +75,8 @@ function TeacherDashboard() {
       case 'internships': return <InternshipsContent />;
       case 'events': return <EventsContent />;
       case 'clubs': return <ClubsContent />;
-      case 'merit': return <MeritList />;
-      case 'marksheets': return <TeacherMarksheetParser />;
+      case 'merit': return <ErrorBoundary><MeritList /></ErrorBoundary>;
+      case 'marksheets': return <ErrorBoundary><TeacherMarksheetParser /></ErrorBoundary>;
       case 'profile': return <ProfileContent teacher={teacher} teacherName={teacherName} teacherId={teacherId} teacherDept={teacherDept} />;
       default: return <DashboardContent teacherName={teacherName} teacherId={teacherId} teacherDept={teacherDept} />;
     }
